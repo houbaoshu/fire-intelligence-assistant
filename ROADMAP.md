@@ -6,19 +6,7 @@ This document defines the long-term development roadmap of the Fire Intelligence
 
 It describes the evolution of the product rather than individual coding tasks.
 
-Detailed implementation requirements belong in dedicated specification documents.
-
-Examples:
-
-```
-specs/
-    dashboard.md
-    regulation-qa.md
-    inspection-record.md
-    photo-report.md
-    interview-record.md
-    rag.md
-```
+Detailed implementation requirements belong in the dedicated documents under `specs/`. The current directory structure is recorded in the **Specification Documents** section below and in `specs/README.md`.
 
 The roadmap should remain stable.
 
@@ -439,28 +427,21 @@ These features are not required for the current roadmap.
 
 Detailed requirements should be maintained separately.
 
-Recommended structure:
+Current structure:
 
-```
+```text
 specs/
-
-dashboard.md
-
-authentication.md
-
-regulation-qa.md
-
-inspection-record.md
-
-photo-report.md
-
-interview-record.md
-
-knowledge-base.md
-
-statistics.md
-
-workflow.md
+├── README.md
+├── authentication.md
+├── dashboard.md
+├── regulation-qa.md
+├── inspection-record.md
+├── photo-report.md
+├── interview-record.md
+├── knowledge-base.md
+├── settings.md
+├── statistics.md
+└── workflow.md
 ```
 
 Each specification should include:
