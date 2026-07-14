@@ -12,6 +12,7 @@ from app.core.config import Settings
 from app.core.exceptions import AppError
 
 Capability = Literal["llm", "vision", "speech", "embedding"]
+QWEN_ASR_MODEL = re.compile(r"^qwen3-asr-flash(?:-\d{4}-\d{2}-\d{2})?$")
 
 
 class OpenAICompatibleClient:
@@ -74,6 +75,30 @@ class OpenAICompatibleClient:
 
     def transcribe(self, audio_path: Path) -> str:
         self.require("speech")
+        model = self._model("speech")
+        assert model is not None
+        if QWEN_ASR_MODEL.fullmatch(model):
+            encoded = base64.b64encode(audio_path.read_bytes()).decode("ascii")
+            return self._chat_request(
+                {
+                    "model": model,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "input_audio",
+                                    "input_audio": {
+                                        "data": f"data:audio/wav;base64,{encoded}"
+                                    },
+                                }
+                            ],
+                        }
+                    ],
+                    "stream": False,
+                    "asr_options": {"enable_itn": False},
+                }
+            )
         with (
             audio_path.open("rb") as source,
             httpx.Client(timeout=self.settings.ai_timeout_seconds) as client,
@@ -81,7 +106,7 @@ class OpenAICompatibleClient:
             response = client.post(
                 f"{self.settings.ai_base_url}/audio/transcriptions",
                 headers=self._auth_headers(),
-                data={"model": self._model("speech")},
+                data={"model": model},
                 files={"file": (audio_path.name, source, "audio/wav")},
             )
         self._raise_provider_error(response)

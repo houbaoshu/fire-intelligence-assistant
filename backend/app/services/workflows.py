@@ -278,8 +278,8 @@ def _index_document(
         client = OpenAICompatibleClient(settings)
         embeddings: list[list[float] | None] = [None] * len(chunks)
         if client.is_configured("embedding"):
-            for start in range(0, len(chunks), 32):
-                batch = [content for content, _ in chunks[start : start + 32]]
+            for start in range(0, len(chunks), 10):
+                batch = [content for content, _ in chunks[start : start + 10]]
                 values = client.embed(batch)
                 embeddings[start : start + len(values)] = values
         for index, ((content, metadata), embedding) in enumerate(
