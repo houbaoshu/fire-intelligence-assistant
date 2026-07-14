@@ -2,7 +2,13 @@ import { api } from "../api-client";
 
 export type GenerateResponse = { task_id: string; entity_id?: string | null };
 export type RecordStatus =
-  "draft" | "processing" | "generated" | "reviewed" | "finalized" | "archived" | "failed";
+  | "draft"
+  | "processing"
+  | "generated"
+  | "reviewed"
+  | "finalized"
+  | "archived"
+  | "failed";
 
 export type InspectionFinding = {
   id?: string | null;

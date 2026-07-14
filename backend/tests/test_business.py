@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import sys
 import time
 
+import pytest
 from fastapi.testclient import TestClient
+
+from app.services.ai import media
 
 
 def auth_headers(client: TestClient) -> dict[str, str]:
@@ -32,7 +36,10 @@ def wait_for_terminal(
     raise AssertionError("task did not reach a terminal state")
 
 
-def test_generation_creates_durable_task_and_safe_failure(client: TestClient) -> None:
+def test_generation_creates_durable_task_and_safe_failure(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(media, "_ffmpeg", lambda: sys.executable)
     headers = auth_headers(client)
     response = client.post(
         "/api/inspection-record/generate",
