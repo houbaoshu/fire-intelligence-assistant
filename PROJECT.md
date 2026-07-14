@@ -398,19 +398,23 @@ The frontend should never duplicate backend logic.
 
 # Current Development Status
 
-The repository currently contains documentation and specifications only. No frontend, backend, database, or infrastructure implementation has been initialized.
+Roadmap Milestones 1–8 are implemented for the current specifications. The platform provides
+authenticated inspection, photo-report, interview, knowledge, statistics, task, enterprise, and
+AI-platform APIs plus corresponding inspector-facing workflows. Long-running processing is durable
+and recoverable in the supported single-worker deployment topology. AI capabilities use configured
+OpenAI-compatible providers and fail explicitly when a required capability is unavailable.
 
 ## Implementation Checklist
 
-- [ ] Authentication
-- [ ] Dashboard
-- [ ] Fire Regulation QA
-- [ ] Inspection Record
-- [ ] Photo Report
-- [ ] Interview Record
-- [ ] Knowledge Base
-- [ ] Statistics
-- [ ] Settings
+- [x] Authentication
+- [x] Dashboard
+- [x] Fire Regulation QA
+- [x] Inspection Record
+- [x] Photo Report
+- [x] Interview Record
+- [x] Knowledge Base
+- [x] Statistics
+- [x] Settings
 
 Update this checklist continuously.
 
@@ -454,23 +458,47 @@ Frontend
 
 VITE_API_BASE_URL
 
-Backend
+Implemented backend foundation
 
-OPENAI_API_KEY
+APP_ENVIRONMENT
 
-LLM_MODEL
+APP_DATABASE_URL
 
-VISION_MODEL
+APP_STORAGE_BACKEND
 
-EMBEDDING_MODEL
+APP_STORAGE_ROOT
 
-DATABASE_URL
+APP_AUTH_SECRET_KEY
+
+APP_ACCESS_TOKEN_MINUTES
+
+APP_REFRESH_TOKEN_DAYS
+
+APP_REGISTRATION_ENABLED
+
+APP_CORS_ORIGINS
+
+APP_LOG_LEVEL
+
+AI configuration
+
+APP_AI_BASE_URL
+
+APP_AI_API_KEY
+
+APP_LLM_MODEL
+
+APP_VISION_MODEL
+
+APP_SPEECH_MODEL
+
+APP_EMBEDDING_MODEL
 
 SUPABASE_URL
 
 SUPABASE_KEY
 
-These are target configuration names. No environment files or runtime configuration modules currently exist in the repository.
+Example environment files exist in `frontend/.env.example` and `backend/.env.example`. Production deployments must supply `APP_AUTH_SECRET_KEY`; development creates a git-ignored local signing key when one is not supplied.
 
 ---
 

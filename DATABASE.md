@@ -141,7 +141,17 @@ The target initial database design contains the following core entities:
 - generated_documents
 - ai_tasks
 - knowledge_documents
+- knowledge_chunks
 - knowledge_index_jobs
+- organizations
+- departments
+- organization_memberships
+- role_permissions
+- ai_model_configurations
+- prompt_templates
+- workflow_definitions
+- plugin_registrations
+- evaluation_runs
 - audit_logs
 
 ---
@@ -193,6 +203,7 @@ If authentication is managed by Supabase Auth or another identity provider, this
 | auth_provider_id | VARCHAR | No | External authentication user ID |
 | email | VARCHAR | Yes | User email |
 | username | VARCHAR | No | Display username |
+| password_hash | VARCHAR | No | Versioned secure password hash for local authentication |
 | role | VARCHAR | Yes | User role |
 | is_active | BOOLEAN | Yes | Whether the account is active |
 | last_login_at | TIMESTAMP | No | Last login time |
@@ -213,6 +224,7 @@ viewer
 
 - `email` must be unique.
 - `role` must use an approved value.
+- Plaintext passwords must never be stored; externally managed users may have no local password hash.
 - Deleted users should not be returned by normal queries.
 
 ---
@@ -259,6 +271,7 @@ Stores fire inspection record documents.
 | inspector_names | JSONB | No | Inspector name list |
 | contact_person | VARCHAR | No | Contact person |
 | contact_phone | VARCHAR | No | Contact phone |
+| source_notes | TEXT | No | Original inspector notes kept separate from AI output |
 | summary | TEXT | No | Inspection summary |
 | conclusion | TEXT | No | Inspection conclusion |
 | status | VARCHAR | Yes | Record status |
@@ -854,33 +867,34 @@ Update this section as the project evolves.
 
 ## Implemented Tables
 
-- [ ] users
-- [ ] user_profiles
-- [ ] inspection_records
-- [ ] inspection_record_items
-- [ ] photo_reports
-- [ ] photo_report_images
-- [ ] interview_records
-- [ ] uploaded_files
-- [ ] generated_documents
-- [ ] ai_tasks
-- [ ] knowledge_documents
-- [ ] knowledge_index_jobs
-- [ ] audit_logs
+- [x] users
+- [x] user_profiles
+- [x] inspection_records
+- [x] inspection_record_items
+- [x] photo_reports
+- [x] photo_report_images
+- [x] interview_records
+- [x] uploaded_files
+- [x] generated_documents
+- [x] ai_tasks
+- [x] knowledge_documents
+- [x] knowledge_index_jobs
+- [x] audit_logs
 
 ## Current Database
 
 ```text
-Database: Not configured
-ORM: Not installed
-Migration tool: Not initialized
-Storage provider: Not configured
-Vector database: Not configured
+Database: PostgreSQL configurable; SQLite development default
+ORM: SQLAlchemy 2
+Migration tool: Alembic initialized
+Storage provider: Protected local development provider
+Vector storage: Knowledge chunks and optional provider embeddings persisted with relational metadata
 ```
 
 ## Notes
 
 Record unresolved database decisions here.
 
-- The repository currently contains the target schema design only.
-- No SQLAlchemy models or Alembic migrations have been created.
+- Migration `20260714_0001` creates `users`, `user_profiles`, and `audit_logs`.
+- Migration `3ef061ca9ed9` creates roadmap business, task, RAG, enterprise, and AI-platform tables.
+- Organization scope is derived from creator membership; administrators retain system scope.

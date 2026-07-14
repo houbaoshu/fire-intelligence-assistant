@@ -1,24 +1,42 @@
-import { api, API_BASE_URL } from "../api-client";
-import type { GenerateResponse } from "./inspection-record";
+import { api } from "../api-client";
+import type { GenerateResponse, RecordStatus } from "./inspection-record";
+
+export type PhotoReportImage = {
+  id: string;
+  caption?: string | null;
+  detected_address?: string | null;
+  detected_violation?: string | null;
+  is_selected: boolean;
+  needs_review: boolean;
+  sort_order: number;
+  frame_timestamp?: number | null;
+  preview_url: string;
+};
 
 export type PhotoReport = {
   id: string;
-  status?: string;
-  address?: string;
-  images?: Array<{
-    id: string;
-    url: string;
-    caption?: string;
-    timestamp?: number;
-    included?: boolean;
-  }>;
-  [k: string]: unknown;
+  revision: number;
+  title?: string | null;
+  inspection_unit?: string | null;
+  inspection_address?: string | null;
+  violation_summary?: string | null;
+  status: RecordStatus;
+  images: PhotoReportImage[];
+  created_at: string;
+  updated_at: string;
 };
 
 export const photoReportService = {
   generate: (form: FormData) => api.post<GenerateResponse>("/api/photo-report/generate", form),
-  get: (id: string) => api.get<PhotoReport>(`/api/photo-report/${id}`),
-  update: (id: string, patch: Partial<PhotoReport>) =>
+  get: (id: string, signal?: AbortSignal) =>
+    api.get<PhotoReport>(`/api/photo-report/${id}`, { signal }),
+  update: (id: string, patch: PhotoReport) =>
     api.put<PhotoReport>(`/api/photo-report/${id}`, patch),
-  downloadUrl: (id: string) => `${API_BASE_URL}/api/photo-report/${id}/download`,
+  preview: (reportId: string, imageId: string, signal?: AbortSignal) =>
+    api.get<Blob>(`/api/photo-report/${reportId}/images/${imageId}`, {
+      responseType: "blob",
+      signal,
+    }),
+  download: (id: string) =>
+    api.get<Blob>(`/api/photo-report/${id}/download`, { responseType: "blob" }),
 };

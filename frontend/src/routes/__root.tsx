@@ -10,8 +10,9 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AppShell } from "../components/layout/AppShell";
 import { Toaster } from "../components/ui/sonner";
+import { AuthProvider } from "../features/auth/AuthProvider";
+import { AuthBoundary } from "../features/auth/AuthBoundary";
 
 function NotFoundComponent() {
   return (
@@ -81,13 +82,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "消防智能助手 · Fire Intelligence Platform" },
       {
         name: "description",
-        content: "面向消防监督执法的智能辅助平台:法规问答、检查记录、图像报告、询问笔录与知识库管理。",
+        content:
+          "面向消防监督执法的智能辅助平台:法规问答、检查记录、图像报告、询问笔录与知识库管理。",
       },
       { name: "author", content: "Fire Intelligence Platform" },
       { property: "og:title", content: "消防智能助手 · Fire Intelligence Platform" },
       {
         property: "og:description",
-        content: "面向消防监督执法的智能辅助平台:法规问答、检查记录、图像报告、询问笔录与知识库管理。",
+        content:
+          "面向消防监督执法的智能辅助平台:法规问答、检查记录、图像报告、询问笔录与知识库管理。",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -108,7 +111,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="zh-CN">
       <head>
         <HeadContent />
       </head>
@@ -125,9 +128,10 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppShell />
+      <AuthProvider>
+        <AuthBoundary />
+      </AuthProvider>
       <Toaster />
     </QueryClientProvider>
   );
 }
-

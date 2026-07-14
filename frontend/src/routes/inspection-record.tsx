@@ -1,16 +1,19 @@
+import { useCallback, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { PageHeader } from "@/components/layout/AppShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Loader2, Upload } from "lucide-react";
+import { ErrorState, LoadingState } from "@/components/common/StateViews";
 import { FileUpload } from "@/components/common/FileUpload";
 import { TaskProgress } from "@/components/common/TaskProgress";
-import { ErrorState, UnavailableState } from "@/components/common/StateViews";
+import { PageHeader } from "@/components/layout/AppShell";
+import { InspectionEditor } from "@/components/records/RecordEditors";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { usePersistentTask } from "@/hooks/usePersistentTask";
 import { inspectionRecordService } from "@/lib/services/inspection-record";
-import { Loader2, Upload } from "lucide-react";
+import type { TaskState } from "@/lib/services/tasks";
 
 export const Route = createFileRoute("/inspection-record")({
   head: () => ({
@@ -25,6 +28,8 @@ export const Route = createFileRoute("/inspection-record")({
 function InspectionRecordPage() {
   const [file, setFile] = useState<File | null>(null);
   const [remarks, setRemarks] = useState("");
+  const [taskId, setTaskId] = usePersistentTask("inspection-record");
+  const [recordId, setRecordId] = useState<string | null>(null);
   const mutation = useMutation({
     mutationFn: () => {
       const fd = new FormData();
@@ -32,17 +37,27 @@ function InspectionRecordPage() {
       if (remarks.trim()) fd.append("remarks", remarks.trim());
       return inspectionRecordService.generate(fd);
     },
+    onSuccess: (result) => {
+      setTaskId(result.task_id);
+      setRecordId(result.entity_id ?? null);
+    },
+  });
+  const onComplete = useCallback(
+    (task: TaskState) => setRecordId(task.result?.entity_id ?? null),
+    [],
+  );
+  const record = useQuery({
+    queryKey: ["inspection-record", recordId],
+    queryFn: ({ signal }) => inspectionRecordService.get(recordId!, signal),
+    enabled: !!recordId,
   });
 
-  const taskId = mutation.data?.task_id ?? null;
-
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-5xl">
       <PageHeader
         title="检查记录"
-        description="上传一段现场检查视频与可选备注,提交后由后端异步生成结构化草稿。"
+        description="上传现场检查视频并审阅 AI 草稿。未配置相应模型时，任务会明确失败而不会编造内容。"
       />
-
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">上传视频</CardTitle>
@@ -51,26 +66,16 @@ function InspectionRecordPage() {
           <FileUpload
             accept="video/mp4,video/quicktime,.mp4,.mov"
             value={file}
-            onChange={(v) => setFile(Array.isArray(v) ? v[0] ?? null : v)}
-            hint="仅支持 mp4 / mov,单个文件"
+            onChange={(value) => setFile(Array.isArray(value) ? (value[0] ?? null) : value)}
+            hint="仅支持 mp4 / mov"
             disabled={mutation.isPending}
           />
           <div className="space-y-2">
-            <Label htmlFor="remarks">备注(可选)</Label>
-            <Textarea
-              id="remarks"
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              rows={3}
-              placeholder="填写检查地点、现场情况等补充信息"
-              disabled={mutation.isPending}
-            />
+            <Label htmlFor="remarks">检查员备注（可选，与机器证据分开保存）</Label>
+            <Textarea id="remarks" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
           </div>
           <div className="flex justify-end">
-            <Button
-              onClick={() => mutation.mutate()}
-              disabled={!file || mutation.isPending}
-            >
+            <Button onClick={() => mutation.mutate()} disabled={!file || mutation.isPending}>
               {mutation.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -79,34 +84,20 @@ function InspectionRecordPage() {
               提交生成
             </Button>
           </div>
-
           {mutation.error && (
-            <ErrorState
-              description={(mutation.error as Error).message}
-              onRetry={() => mutation.mutate()}
-            />
+            <ErrorState description={mutation.error.message} onRetry={() => mutation.mutate()} />
           )}
         </CardContent>
       </Card>
-
-      {taskId && (
-        <div className="mt-6">
-          <TaskProgress taskId={taskId} />
-        </div>
-      )}
-
+      {taskId && <TaskProgress className="mt-6" taskId={taskId} onComplete={onComplete} />}
       <div className="mt-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">草稿审阅</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <UnavailableState
-              title="待任务完成后加载"
-              description="后端返回结构化字段后,此处将支持基本信息与检查发现的审阅、编辑与保存。"
-            />
-          </CardContent>
-        </Card>
+        {record.isLoading ? (
+          <LoadingState title="正在加载草稿" />
+        ) : record.error ? (
+          <ErrorState description={record.error.message} onRetry={() => record.refetch()} />
+        ) : record.data ? (
+          <InspectionEditor initial={record.data} />
+        ) : null}
       </div>
     </div>
   );

@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - working-directory: backend
+        run: uv sync --frozen --dev
+      - working-directory: backend
+        run: uv run ruff check .
+      - working-directory: backend
+        run: uv run mypy app
+      - working-directory: backend
+        run: uv run pytest
+      - working-directory: backend
+        env:
+          APP_DATABASE_URL: sqlite+pysqlite:///./ci-migration.db
+        run: uv run alembic upgrade head
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - working-directory: frontend
+        run: bun install --frozen-lockfile
+      - working-directory: frontend
+        run: bun run lint
+      - working-directory: frontend
+        run: bun run typecheck
+      - working-directory: frontend
+        env:
+          VITE_API_BASE_URL: http://localhost:8000
+        run: bun run build

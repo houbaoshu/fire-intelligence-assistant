@@ -6,7 +6,7 @@ The Photo Report feature converts an inspection video into a structured, reviewa
 
 ## 2. Status and Scope
 
-**Status:** Planned. No application code exists in the current repository, so implementation is not verified.
+**Status:** Implemented. FFmpeg extraction, quality and duplicate filtering, vision drafts, protected review, ordering, persistence, and DOCX output are implemented.
 
 Current scope:
 
@@ -349,15 +349,15 @@ User-facing examples should be localized to Chinese in the implemented interface
 
 ## 18. Acceptance Criteria
 
-- [ ] A valid video creates one photo-report generation task.
-- [ ] Task polling stops on completed, failed, or cancelled status.
-- [ ] The backend extracts multiple representative frames and excludes unusable duplicates.
-- [ ] Each displayed image remains linked to its source timestamp.
-- [ ] Users can edit captions, address, and violation text.
-- [ ] Users can select, exclude, preview, and reorder images accessibly.
-- [ ] Conflicting or uncertain address and violation results require manual review.
-- [ ] The system does not fabricate unseen violations, equipment, or locations.
-- [ ] The generated document includes only selected images in saved order with saved captions.
-- [ ] Reviewed structured data persists independently from the generated file.
-- [ ] Protected files cannot be accessed without backend authorization.
-- [ ] Available lint, type, test, migration, and build checks pass.
+- [x] A valid video creates one photo-report generation task.
+- [x] Task polling stops on completed, failed, or cancelled status.
+- [x] The backend extracts multiple representative frames and excludes unusable duplicates.
+- [x] Each displayed image remains linked to its source timestamp.
+- [x] Users can edit captions, address, and violation text.
+- [x] Users can select, exclude, preview, and reorder images accessibly.
+- [x] Conflicting or uncertain address and violation results require manual review.
+- [x] The system does not fabricate unseen violations, equipment, or locations.
+- [x] The generated document includes only selected images in saved order with saved captions.
+- [x] Reviewed structured data persists independently from the generated file.
+- [x] Protected files cannot be accessed without backend authorization.
+- [x] Available lint, type, test, migration, and build checks pass.

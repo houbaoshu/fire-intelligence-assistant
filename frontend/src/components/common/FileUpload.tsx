@@ -126,9 +126,7 @@ export function FileUpload({
               <div className="flex min-w-0 items-center gap-2">
                 <FileIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <span className="truncate">{f.name}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {formatSize(f.size)}
-                </span>
+                <span className="shrink-0 text-xs text-muted-foreground">{formatSize(f.size)}</span>
               </div>
               <Button
                 type="button"

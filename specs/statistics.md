@@ -6,7 +6,7 @@ The Statistics feature presents accurate, permission-scoped summaries of inspect
 
 ## 2. Status and Scope
 
-**Status:** Planned. No application code exists in the current repository, so implementation is not verified.
+**Status:** Implemented. Permission-scoped backend aggregation and accessible frontend summary and status tables are implemented.
 
 Current scope:
 
@@ -224,12 +224,12 @@ Future narrative summaries, anomaly explanations, or recommendations must have a
 
 ## 17. Acceptance Criteria
 
-- [ ] All displayed operational values come from `GET /api/statistics`.
-- [ ] Reporting period, scope, and units are clear.
-- [ ] Zero, missing, unavailable, and error states remain distinct.
-- [ ] Statistics respect backend authorization and soft-deletion rules.
-- [ ] Charts are used only for valid series and have accessible alternatives.
-- [ ] Partial failures do not hide unrelated valid metrics.
-- [ ] No invented trend, comparison, or placeholder value appears as real data.
-- [ ] The page works on desktop and tablet.
-- [ ] Available lint, type, test, and build checks pass.
+- [x] All displayed operational values come from `GET /api/statistics`.
+- [x] Reporting period, scope, and units are clear.
+- [x] Zero, missing, unavailable, and error states remain distinct.
+- [x] Statistics respect backend authorization and soft-deletion rules.
+- [x] Charts are used only for valid series and have accessible alternatives.
+- [x] Partial failures do not hide unrelated valid metrics.
+- [x] No invented trend, comparison, or placeholder value appears as real data.
+- [x] The page works on desktop and tablet.
+- [x] Available lint, type, test, and build checks pass.

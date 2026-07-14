@@ -1,24 +1,23 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import {
-  MessageSquareText,
+  BookOpen,
   ClipboardList,
   Images,
+  MessageSquareText,
   Mic,
-  BookOpen,
   Settings as SettingsIcon,
 } from "lucide-react";
-import { PageHeader } from "@/components/layout/AppShell";
 import { BackendStatusCard } from "@/components/common/BackendStatus";
+import { EmptyState, ErrorState, LoadingState } from "@/components/common/StateViews";
+import { PageHeader } from "@/components/layout/AppShell";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { UnavailableState } from "@/components/common/StateViews";
+import { statisticsService } from "@/lib/services/statistics";
+import { taskService } from "@/lib/services/tasks";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "工作台 · 消防智能助手" },
-      { name: "description", content: "查看后端连接状态并快速进入各模块。" },
-    ],
-  }),
+  head: () => ({ meta: [{ title: "工作台 · 消防智能助手" }] }),
   component: Dashboard,
 });
 
@@ -32,62 +31,94 @@ const SHORTCUTS = [
 ] as const;
 
 function Dashboard() {
+  const statistics = useQuery({
+    queryKey: ["statistics"],
+    queryFn: ({ signal }) => statisticsService.get(signal),
+  });
+  const tasks = useQuery({
+    queryKey: ["tasks", "recent"],
+    queryFn: ({ signal }) => taskService.list(signal),
+  });
+
   return (
     <div className="mx-auto max-w-6xl">
-      <PageHeader
-        title="工作台"
-        description="查看系统状态,并快速进入各业务模块。统计数据将在后端接口就绪后加载。"
-      />
+      <PageHeader title="工作台" description="真实系统状态、当前账号可见的业务汇总和最近任务。" />
+      <BackendStatusCard />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <BackendStatusCard />
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">概览指标</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <UnavailableState
-              title="统计数据暂未接入"
-              description="GET /api/statistics 接口就绪后,此处将展示真实汇总数据。"
-            />
-          </CardContent>
-        </Card>
-      </div>
+      <section className="mt-6" aria-labelledby="metrics-title">
+        <h2 id="metrics-title" className="mb-3 text-sm font-medium text-muted-foreground">
+          业务概览
+        </h2>
+        {statistics.isLoading ? (
+          <LoadingState title="正在加载统计" />
+        ) : statistics.error ? (
+          <ErrorState description={statistics.error.message} onRetry={() => statistics.refetch()} />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {statistics.data?.metrics.map((metric) => (
+              <Card key={metric.id}>
+                <CardContent className="p-4">
+                  <div className="text-xs text-muted-foreground">{metric.label}</div>
+                  <div className="mt-1 text-2xl font-semibold">
+                    {metric.available && metric.value !== null ? metric.value : "不可用"}
+                    {metric.available && metric.value !== null && (
+                      <span className="ml-1 text-xs font-normal">{metric.unit}</span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
 
-      <div className="mt-6">
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground">快捷入口</h2>
+      <section className="mt-6" aria-labelledby="shortcuts-title">
+        <h2 id="shortcuts-title" className="mb-3 text-sm font-medium text-muted-foreground">
+          快捷入口
+        </h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {SHORTCUTS.map((s) => (
+          {SHORTCUTS.map((shortcut) => (
             <Link
-              key={s.to}
-              to={s.to}
-              className="group flex items-center gap-3 rounded-lg border border-border bg-card p-4 transition hover:border-primary/50 hover:bg-accent/40"
+              key={shortcut.to}
+              to={shortcut.to}
+              className="flex items-center gap-3 rounded-lg border bg-card p-4 hover:bg-accent/40"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <s.icon className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="text-sm font-medium">{s.label}</div>
-                <div className="text-xs text-muted-foreground">进入模块</div>
-              </div>
+              <shortcut.icon className="h-5 w-5 text-primary" />
+              <span className="text-sm font-medium">{shortcut.label}</span>
             </Link>
           ))}
         </div>
-      </div>
+      </section>
 
-      <div className="mt-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">最近任务</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <UnavailableState
-              title="最近任务尚未提供"
-              description="后端最近任务列表接口审批后,将在此显示您最近的生成任务与文档。"
-            />
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="mt-6">
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle className="text-sm">最近任务</CardTitle>
+          <Link to="/tasks" className="text-xs text-primary hover:underline">
+            查看全部
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {tasks.isLoading ? (
+            <LoadingState />
+          ) : tasks.error ? (
+            <ErrorState description={tasks.error.message} onRetry={() => tasks.refetch()} />
+          ) : !tasks.data?.items.length ? (
+            <EmptyState title="暂无任务" description="提交生成或索引后，任务会显示在这里。" />
+          ) : (
+            <ul className="space-y-2">
+              {tasks.data.items.slice(0, 5).map((task) => (
+                <li
+                  key={task.id}
+                  className="flex items-center justify-between rounded-md border p-3 text-sm"
+                >
+                  <span>{task.task_type}</span>
+                  <Badge variant="outline">{task.status}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

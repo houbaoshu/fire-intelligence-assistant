@@ -38,6 +38,7 @@ export class ApiUnavailableError extends ApiError {
 }
 
 const AUTH_STORAGE_KEY = "fip.auth.token";
+export const AUTH_EXPIRED_EVENT = "fip:auth-expired";
 
 export function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -48,7 +49,7 @@ export function getAuthToken(): string | null {
   }
 }
 
-export function setAuthToken(token: string | null) {
+export function setAuthToken(token: string | null): void {
   if (typeof window === "undefined") return;
   try {
     if (token) window.localStorage.setItem(AUTH_STORAGE_KEY, token);
@@ -84,10 +85,7 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
   return url.toString();
 }
 
-export async function apiRequest<T = unknown>(
-  path: string,
-  opts: RequestOptions = {},
-): Promise<T> {
+export async function apiRequest<T = unknown>(path: string, opts: RequestOptions = {}): Promise<T> {
   const url = buildUrl(path, opts.query);
 
   const headers: Record<string, string> = { Accept: "application/json", ...(opts.headers ?? {}) };
@@ -134,6 +132,12 @@ export async function apiRequest<T = unknown>(
     } catch {
       /* ignore parse errors */
     }
+    if (res.status === 401 && !opts.anonymous) {
+      setAuthToken(null);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+      }
+    }
     throw new ApiError(res.status, code, message, details);
   }
 
@@ -159,4 +163,13 @@ export const api = {
 
 export function isApiConfigured(): boolean {
   return API_BASE_URL.length > 0;
+}
+
+export function saveBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }

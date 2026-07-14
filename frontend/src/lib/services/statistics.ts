@@ -1,10 +1,23 @@
 import { api } from "../api-client";
 
-/**
- * The backend statistics schema is not yet fixed. The frontend treats each
- * value as an opaque number/string; missing fields render as "unavailable".
- */
-export type Statistics = Record<string, number | string | null | undefined>;
+export type Metric = {
+  id: string;
+  label: string;
+  value: number | null;
+  unit: string;
+  available: boolean;
+};
+
+export type Statistics = {
+  scope: "personal" | "organization" | "system";
+  period_start: string | null;
+  period_end: string;
+  timezone: string;
+  last_updated_at: string;
+  metrics: Metric[];
+  task_statuses: Record<string, number>;
+  knowledge_statuses: Record<string, number>;
+};
 
 export const statisticsService = {
   get: (signal?: AbortSignal) => api.get<Statistics>("/api/statistics", { signal }),

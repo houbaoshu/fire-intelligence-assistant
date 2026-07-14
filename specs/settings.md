@@ -6,7 +6,7 @@ The Settings feature gives users a safe place to view connection information and
 
 ## 2. Status and Scope
 
-**Status:** Planned. No application code exists in the current repository, so implementation is not verified.
+**Status:** Implemented. Real health, redacted API origin, validated local preferences, safe capabilities, restore, and offline states are implemented.
 
 Current scope:
 
@@ -198,12 +198,12 @@ The settings page must not call model providers directly, test prompts, expose p
 
 ## 17. Acceptance Criteria
 
-- [ ] Connection status is based on `GET /health` and can be retried.
-- [ ] The displayed API origin contains no credentials or secret values.
-- [ ] Ordinary users cannot change deployment configuration or secrets in the browser.
-- [ ] Supported non-sensitive preferences can be changed and restored.
-- [ ] Invalid stored preferences fall back safely.
-- [ ] Missing system information is shown as unavailable, not invented.
-- [ ] The settings page remains usable when the backend is unavailable.
-- [ ] Controls are keyboard accessible and status does not rely on color alone.
-- [ ] Available lint, type, test, and build checks pass.
+- [x] Connection status is based on `GET /health` and can be retried.
+- [x] The displayed API origin contains no credentials or secret values.
+- [x] Ordinary users cannot change deployment configuration or secrets in the browser.
+- [x] Supported non-sensitive preferences can be changed and restored.
+- [x] Invalid stored preferences fall back safely.
+- [x] Missing system information is shown as unavailable, not invented.
+- [x] The settings page remains usable when the backend is unavailable.
+- [x] Controls are keyboard accessible and status does not rely on color alone.
+- [x] Available lint, type, test, and build checks pass.
