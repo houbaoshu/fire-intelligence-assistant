@@ -6,7 +6,7 @@ The dashboard provides a trustworthy overview of platform health, recent work, a
 
 ## 2. Status and Scope
 
-**Status:** Planned. No application code exists in the current repository, so implementation is not verified.
+**Status:** Implemented. Health, authorized statistics, recent tasks, and registered shortcuts are wired through the shared query and API layers.
 
 Current scope:
 
@@ -214,13 +214,13 @@ Future AI summaries or recommendations must be explicitly specified, evidence-ba
 
 ## 17. Acceptance Criteria
 
-- [ ] Backend status is based on `GET /health` and supports retry.
-- [ ] Summary values come from `GET /api/statistics`.
-- [ ] No invented or placeholder value is displayed as real data.
-- [ ] Loading, empty, partial-failure, and complete-failure states are distinct.
-- [ ] Shortcuts respect authorization and registered routes.
-- [ ] Missing values are shown as unavailable rather than assumed to be zero.
-- [ ] Dashboard requests use the centralized API client and shared query layer.
-- [ ] The layout is usable on desktop and tablet.
-- [ ] Statuses remain understandable without color.
-- [ ] Available lint, type, test, and build checks pass.
+- [x] Backend status is based on `GET /health` and supports retry.
+- [x] Summary values come from `GET /api/statistics`.
+- [x] No invented or placeholder value is displayed as real data.
+- [x] Loading, empty, partial-failure, and complete-failure states are distinct.
+- [x] Shortcuts respect authorization and registered routes.
+- [x] Missing values are shown as unavailable rather than assumed to be zero.
+- [x] Dashboard requests use the centralized API client and shared query layer.
+- [x] The layout is usable on desktop and tablet.
+- [x] Statuses remain understandable without color.
+- [x] Available lint, type, test, and build checks pass.

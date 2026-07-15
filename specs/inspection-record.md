@@ -6,7 +6,7 @@ The Inspection Record feature converts inspection video and optional inspector n
 
 ## 2. Status and Scope
 
-**Status:** Planned. No application code exists in the current repository, so implementation is not verified.
+**Status:** Implemented. The authenticated upload, durable workflow, structured review, revision-safe save, and versioned backend DOCX flow are verified.
 
 Current scope:
 
@@ -306,14 +306,14 @@ AI constraints:
 
 ## 17. Acceptance Criteria
 
-- [ ] A valid video and optional notes create one generation task.
-- [ ] Task status uses `GET /api/tasks/{task_id}` and polling stops at terminal states.
-- [ ] Completion resolves to a structured inspection record.
-- [ ] Users can edit and save record fields and findings.
-- [ ] Unsupported, oversized, and failed uploads show actionable errors.
-- [ ] Missing or uncertain evidence is not replaced with fabricated facts.
-- [ ] Final document content matches the saved reviewed record.
-- [ ] Finalized documents are versioned rather than silently overwritten.
-- [ ] Files are generated and downloaded by the backend.
-- [ ] Authorization protects view, update, finalize, and download operations.
-- [ ] Available lint, type, test, migration, and build checks pass.
+- [x] A valid video and optional notes create one generation task.
+- [x] Task status uses `GET /api/tasks/{task_id}` and polling stops at terminal states.
+- [x] Completion resolves to a structured inspection record.
+- [x] Users can edit and save record fields and findings.
+- [x] Unsupported, oversized, and failed uploads show actionable errors.
+- [x] Missing or uncertain evidence is not replaced with fabricated facts.
+- [x] Final document content matches the saved reviewed record.
+- [x] Finalized documents are versioned rather than silently overwritten.
+- [x] Files are generated and downloaded by the backend.
+- [x] Authorization protects view, update, finalize, and download operations.
+- [x] Available lint, type, test, migration, and build checks pass.

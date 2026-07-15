@@ -1,0 +1,62 @@
+[project]
+name = "fire-intelligence-backend"
+version = "0.1.0"
+description = "Backend foundation for the Fire Intelligence Platform"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "alembic>=1.16.0",
+  "email-validator>=2.2.0",
+  "fastapi>=0.116.0",
+  "httpx>=0.28.0",
+  "pillow>=12.0.0",
+  "pydantic-settings>=2.10.0",
+  "psycopg[binary]>=3.2.0",
+  "pypdf>=5.7.0",
+  "python-docx>=1.2.0",
+  "python-multipart>=0.0.20",
+  "python-pptx>=1.0.2",
+  "sqlalchemy>=2.0.41",
+  "uvicorn[standard]>=0.35.0",
+]
+
+[dependency-groups]
+dev = [
+  "httpx>=0.28.0",
+  "mypy>=1.16.0",
+  "pytest>=8.4.0",
+  "pytest-cov>=6.2.0",
+  "ruff>=0.12.0",
+]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+  "fastapi.Depends",
+  "fastapi.File",
+  "fastapi.Form",
+  "fastapi.Header",
+  "fastapi.Query",
+  "app.core.permissions.require_permission",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+packages = ["app"]
+
+[[tool.mypy.overrides]]
+module = "alembic.*"
+ignore_missing_imports = true

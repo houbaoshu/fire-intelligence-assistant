@@ -6,7 +6,7 @@ The Fire Regulation QA feature helps fire inspectors find and understand relevan
 
 ## 2. Status and Scope
 
-**Status:** Planned. No application code exists in the current repository, so implementation is not verified.
+**Status:** Implemented. Organization-scoped retrieval, ranking, grounded generation, citations, and explicit no-evidence and retrieval-only modes are implemented.
 
 Current scope:
 
@@ -275,13 +275,13 @@ AI rules:
 
 ## 17. Acceptance Criteria
 
-- [ ] A valid question reaches `POST /api/qa/query` through the centralized API client.
-- [ ] Retrieval and reranking occur before answer generation.
-- [ ] The answer is displayed with source metadata defined by the backend.
-- [ ] No-evidence results do not contain fabricated legal claims.
-- [ ] Expired or conflicting sources are visibly identified when present.
-- [ ] Copy includes a readable source list.
-- [ ] Empty, retrieving, generating, success, no-evidence, and error states are distinct.
-- [ ] Unauthorized source content is never exposed.
-- [ ] Unsafe Markdown or HTML is not rendered.
-- [ ] Available lint, type, test, and build checks pass.
+- [x] A valid question reaches `POST /api/qa/query` through the centralized API client.
+- [x] Retrieval and reranking occur before answer generation.
+- [x] The answer is displayed with source metadata defined by the backend.
+- [x] No-evidence results do not contain fabricated legal claims.
+- [x] Expired or conflicting sources are visibly identified when present.
+- [x] Copy includes a readable source list.
+- [x] Empty, retrieving, generating, success, no-evidence, and error states are distinct.
+- [x] Unauthorized source content is never exposed.
+- [x] Unsafe Markdown or HTML is not rendered.
+- [x] Available lint, type, test, and build checks pass.

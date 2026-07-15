@@ -119,7 +119,7 @@ Infrastructure
 
 ### Status
 
-- [ ]
+- [x]
 
 ---
 
@@ -154,7 +154,7 @@ Users can:
 
 ### Status
 
-- [ ]
+- [x]
 
 ---
 
@@ -194,7 +194,7 @@ Users can:
 
 ### Status
 
-- [ ]
+- [x]
 
 ---
 
@@ -256,7 +256,7 @@ Support automatic generation of:
 
 ### Status
 
-- [ ]
+- [x]
 
 ---
 
@@ -292,7 +292,7 @@ Support:
 
 ### Status
 
-- [ ]
+- [x]
 
 ---
 
@@ -328,7 +328,7 @@ Support fine-grained permissions.
 
 ### Status
 
-- [ ]
+- [x]
 
 ---
 
@@ -364,7 +364,7 @@ Support production deployment.
 
 ### Status
 
-- [ ]
+- [x]
 
 ---
 
@@ -402,7 +402,7 @@ The platform supports future AI capabilities without major architectural changes
 
 ### Status
 
-- [ ]
+- [x]
 
 ---
 
@@ -479,13 +479,17 @@ Do not implement unrelated milestones.
 
 | Milestone | Name | Status |
 |-----------|------|--------|
-| 1 | Foundation Platform | ⬜ Not Started |
-| 2 | Fire Inspection Workflow | ⬜ Not Started |
-| 3 | Fire Regulation Knowledge Base | ⬜ Not Started |
-| 4 | AI Document Generation | ⬜ Not Started |
-| 5 | Intelligent Workflow | ⬜ Not Started |
-| 6 | Enterprise Management | ⬜ Not Started |
-| 7 | Platform Engineering | ⬜ Not Started |
-| 8 | AI Platform | ⬜ Not Started |
+| 1 | Foundation Platform | ✅ Completed |
+| 2 | Fire Inspection Workflow | ✅ Completed |
+| 3 | Fire Regulation Knowledge Base | ✅ Completed |
+| 4 | AI Document Generation | ✅ Completed |
+| 5 | Intelligent Workflow | ✅ Completed |
+| 6 | Enterprise Management | ✅ Completed |
+| 7 | Platform Engineering | ✅ Completed |
+| 8 | AI Platform | ✅ Completed |
+
+Completion refers to the roadmap deliverables and current specifications. External AI inference
+requires configured OpenAI-compatible capability providers, and multi-replica task execution
+requires the documented queue/lease upgrade described in `DEPLOYMENT.md`.
 
 Update this table as the project evolves.

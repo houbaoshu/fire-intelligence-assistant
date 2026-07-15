@@ -6,7 +6,7 @@ The Knowledge Base feature lets authorized users manage source documents used by
 
 ## 2. Status and Scope
 
-**Status:** Planned. No application code exists in the current repository, so implementation is not verified.
+**Status:** Implemented. Authorized upload, duplicate detection, parsing, chunking, optional embeddings, indexed retrieval, deletion, and rebuild are implemented.
 
 Current scope:
 
@@ -314,13 +314,13 @@ Additional validation:
 
 ## 17. Acceptance Criteria
 
-- [ ] Authorized users can list knowledge documents and see accurate status.
-- [ ] A valid supported document can be uploaded without being marked indexed prematurely.
-- [ ] Parsing, chunking, embedding, and indexing produce traceable source metadata.
-- [ ] Duplicate content is detected or handled through explicit version rules.
-- [ ] Failed indexing shows an actionable error and does not create an active partial index silently.
-- [ ] Deleting a document removes it from future retrieval and handles storage cleanup safely.
-- [ ] Full rebuild reports progress and does not create duplicate active chunks.
-- [ ] Unauthorized users cannot manage or retrieve restricted source content.
-- [ ] Empty, loading, indexing, indexed, outdated, failed, and backend-error states are distinct.
-- [ ] Available lint, type, test, migration, and build checks pass.
+- [x] Authorized users can list knowledge documents and see accurate status.
+- [x] A valid supported document can be uploaded without being marked indexed prematurely.
+- [x] Parsing, chunking, embedding, and indexing produce traceable source metadata.
+- [x] Duplicate content is detected or handled through explicit version rules.
+- [x] Failed indexing shows an actionable error and does not create an active partial index silently.
+- [x] Deleting a document removes it from future retrieval and handles storage cleanup safely.
+- [x] Full rebuild reports progress and does not create duplicate active chunks.
+- [x] Unauthorized users cannot manage or retrieve restricted source content.
+- [x] Empty, loading, indexing, indexed, outdated, failed, and backend-error states are distinct.
+- [x] Available lint, type, test, migration, and build checks pass.

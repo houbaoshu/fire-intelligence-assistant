@@ -18,7 +18,12 @@ The target repository architecture is designed to contain:
 - Database
 - Object storage
 
-Current implementation status must be determined from the files present in the repository. At present, the repository contains project documentation and specifications only; application code has not been initialized.
+Current implementation status must be determined from the files present in the repository. Roadmap
+Milestones 1–8 are implemented for the current specifications: the repository contains the Lovable
+React frontend, FastAPI business APIs, SQLAlchemy/Alembic persistence, protected storage, bearer
+authentication, durable tasks, configurable AI pipelines, RAG, document generation, enterprise
+scope, deployment assets, and AI-platform registries. External AI inference still requires deployed
+capability providers.
 
 Always understand the existing architecture before making changes.
 

@@ -6,7 +6,7 @@ Authentication identifies users before they access protected fire-inspection fun
 
 ## 2. Status and Scope
 
-**Status:** Planned. No application code exists in the current repository, so implementation is not verified.
+**Status:** Implemented for Roadmap Milestone 1. Backend route tests, frontend type/lint checks, and the production build verify the current scope.
 
 Current scope:
 
@@ -151,7 +151,7 @@ Login response:
 }
 ```
 
-The exact registration and current-user schemas must be added to `API.md` before implementation if they are not already represented in backend schemas.
+Registration and current-user schemas are defined in `API.md` and enforced by backend Pydantic schemas. Public registration availability is exposed by `GET /api/auth/config`.
 
 Proposed future contracts:
 
@@ -194,6 +194,7 @@ Passwords must be managed by the selected identity provider or stored only as se
 - Never place passwords or tokens in logs, URLs, analytics, or error details.
 - Do not hardcode tokens or authentication secrets.
 - Prefer secure, HTTP-only cookies when the chosen backend architecture supports them; otherwise document token storage and XSS mitigations explicitly.
+- The Milestone 1 bearer flow stores only the access token in browser local storage; the returned refresh token is not persisted. React escaping, sanitized rendering, dependency review, and the absence of token logging reduce exposure, but migration to secure HTTP-only cookies remains preferred before handling production-sensitive data.
 - Use HTTPS outside local development.
 - Authorization must be checked on every protected backend operation.
 - Authentication events should be auditable without recording secrets.
@@ -217,14 +218,14 @@ Passwords must be managed by the selected identity provider or stored only as se
 
 ## 16. Acceptance Criteria
 
-- [ ] Valid credentials establish an authenticated session.
-- [ ] Invalid credentials show a safe, readable error.
-- [ ] Protected pages redirect unauthenticated users to sign-in.
-- [ ] The originally requested route is restored after sign-in.
-- [ ] `GET /api/auth/me` determines the authenticated user.
-- [ ] Expired credentials produce one coherent re-authentication flow.
-- [ ] Signing out prevents subsequent protected requests from using the old local session.
-- [ ] Role and permission checks are enforced by the backend.
-- [ ] No password or token is logged or committed.
-- [ ] Loading, error, and keyboard-access states are verified.
-- [ ] Available lint, type, test, and build checks pass.
+- [x] Valid credentials establish an authenticated session.
+- [x] Invalid credentials show a safe, readable error.
+- [x] Protected pages redirect unauthenticated users to sign-in.
+- [x] The originally requested route is restored after sign-in.
+- [x] `GET /api/auth/me` determines the authenticated user.
+- [x] Expired credentials produce one coherent re-authentication flow.
+- [x] Signing out prevents subsequent protected requests from using the old local session.
+- [x] Role and permission checks are enforced by the backend.
+- [x] No password or token is logged or committed.
+- [x] Loading, error, and keyboard-access states are verified.
+- [x] Available lint, type, test, and build checks pass.

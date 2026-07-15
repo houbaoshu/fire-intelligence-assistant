@@ -6,7 +6,7 @@ The Workflow feature coordinates long-running, multi-stage platform operations s
 
 ## 2. Status and Scope
 
-**Status:** Planned for Roadmap Milestone 5. It must not be treated as implemented, and it should not be built before the foundation and core business workflows establish real requirements.
+**Status:** Implemented for Roadmap Milestone 5. Durable task state, startup recovery, bounded retries, cancellation, idempotency, progress, and the task center are verified.
 
 Current target scope:
 
@@ -309,14 +309,14 @@ Requirements:
 
 ## 17. Acceptance Criteria
 
-- [ ] Long-running business requests return a durable `task_id` without blocking until completion.
-- [ ] Task states and transitions use one documented platform model.
-- [ ] Frontend polling stops at completed, failed, or cancelled states.
-- [ ] Duplicate delivery or submission does not silently duplicate final business results.
-- [ ] Retry and cancellation are authorization-aware and state-aware.
-- [ ] Worker or provider failures produce safe actionable error codes and messages.
-- [ ] Business records remain the source of truth after task completion.
-- [ ] Queue payloads and logs contain no secrets or large sensitive content.
-- [ ] Stuck, exhausted, and abandoned tasks have documented recovery behavior.
-- [ ] Task UI is accessible and does not announce every polling refresh.
-- [ ] Available unit, integration, migration, load, and build checks pass.
+- [x] Long-running business requests return a durable `task_id` without blocking until completion.
+- [x] Task states and transitions use one documented platform model.
+- [x] Frontend polling stops at completed, failed, or cancelled states.
+- [x] Duplicate delivery or submission does not silently duplicate final business results.
+- [x] Retry and cancellation are authorization-aware and state-aware.
+- [x] Worker or provider failures produce safe actionable error codes and messages.
+- [x] Business records remain the source of truth after task completion.
+- [x] Queue payloads and logs contain no secrets or large sensitive content.
+- [x] Stuck, exhausted, and abandoned tasks have documented recovery behavior.
+- [x] Task UI is accessible and does not announce every polling refresh.
+- [x] Available unit, integration, migration, load, and build checks pass.

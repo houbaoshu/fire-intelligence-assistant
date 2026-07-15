@@ -1468,47 +1468,48 @@ Update this section as implementation progresses.
 ### Frontend
 
 ```text
-Status: Not initialized; documentation only
-Framework: Not installed
-Routing: Not implemented
-Server-state library: Not installed
-API client: Not implemented
+Status: Roadmap inspector-facing frontend implemented
+Framework: React 19 with Vite and TanStack Start
+Routing: TanStack file routing with protected business routes
+Server-state library: TanStack Query
+API client: Centralized environment-based client with bearer auth and standard errors
 ```
 
 ### Backend
 
 ```text
-Status: Not initialized; documentation only
-Framework: Not installed
-ORM: Not installed
-Migration system: Not initialized
-Task system: Not implemented
+Status: Roadmap APIs, durable tasks, business services, RAG, and document generation implemented
+Framework: FastAPI
+ORM: SQLAlchemy 2
+Migration system: Alembic with initial identity and audit migration
+Task system: Durable database task state with bounded thread workers, retry, cancellation, and startup recovery
 ```
 
 ### AI
 
 ```text
-LLM abstraction: Not implemented
-Vision abstraction: Not implemented
-OCR abstraction: Not implemented
-Speech abstraction: Not implemented
-Embedding abstraction: Not implemented
-Reranker abstraction: Not implemented
+LLM abstraction: OpenAI-compatible provider implemented
+Vision abstraction: OpenAI-compatible provider plus FFmpeg frame pipeline implemented
+OCR abstraction: Vision evidence extraction boundary implemented
+Speech abstraction: OpenAI-compatible transcription implemented
+Embedding abstraction: Optional OpenAI-compatible embeddings implemented
+Reranker abstraction: Embedding and lexical evidence ranking implemented
 ```
 
 ### Storage
 
 ```text
-Relational database: Not configured
-Object storage: Not configured
-Vector database: Not configured
-Temporary storage: Not configured
+Relational database: PostgreSQL configurable; SQLite development default
+Object storage: Local provider implemented for development
+Vector database: Relational knowledge-chunk store with optional provider vectors implemented
+Temporary storage: Local storage category initialized
 ```
 
-### Known Architectural Blockers
+### Known Architectural Boundaries
 
-- Milestone 1 foundation has not been initialized.
-- API and database contracts are design targets and have no runtime implementation yet.
+- AI generation requires deployment-provided capability models and credentials.
+- The included durable dispatcher supports one API replica; multiple replicas require queue leases.
+- Local protected storage is the implemented provider; S3-compatible production storage remains a replaceable adapter.
 
 ---
 

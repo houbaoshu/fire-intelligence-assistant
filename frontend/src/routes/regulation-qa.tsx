@@ -45,7 +45,13 @@ function RegulationQA() {
 
   const copy = async () => {
     if (!mutation.data) return;
-    await navigator.clipboard.writeText(mutation.data.answer ?? "");
+    const sources = mutation.data.sources
+      .map(
+        (source, index) =>
+          `[${index + 1}] ${source.title}${source.article ? ` · ${source.article}` : ""}${source.page ? ` · 第 ${source.page} 页` : ""}`,
+      )
+      .join("\n");
+    await navigator.clipboard.writeText(`${mutation.data.answer}\n\n来源：\n${sources}`);
     toast.success("已复制答案");
   };
 
@@ -124,28 +130,41 @@ function RegulationQA() {
               <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
                 {mutation.data.answer || "(未返回文本)"}
               </div>
+              {mutation.data.evidence_status !== "grounded" && (
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                  {mutation.data.evidence_status === "no_evidence"
+                    ? "未检索到足够证据，未生成确定结论。"
+                    : "当前为检索原文模式，未调用语言模型生成结论。"}
+                </div>
+              )}
               <div>
                 <div className="mb-2 text-xs font-medium text-muted-foreground">来源</div>
                 {mutation.data.sources && mutation.data.sources.length > 0 ? (
                   <ul className="space-y-2">
                     {mutation.data.sources.map((s, i) => (
                       <li
-                        key={s.id ?? i}
+                        key={`${s.document_id}-${i}`}
                         className="rounded-md border border-border bg-muted/30 p-3 text-xs"
                       >
                         <div className="font-medium text-foreground">
-                          {s.title ?? `来源 ${i + 1}`}
+                          {s.title || `来源 ${i + 1}`}
                         </div>
-                        {s.snippet && (
-                          <div className="mt-1 text-muted-foreground">{s.snippet}</div>
-                        )}
+                        <div className="mt-1 text-muted-foreground">
+                          {[
+                            s.issuing_authority,
+                            s.version,
+                            s.article,
+                            s.page ? `第 ${s.page} 页` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                        <div className="mt-1 text-muted-foreground">{s.excerpt}</div>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <div className="text-xs text-muted-foreground">
-                    本次回答未返回来源引用。
-                  </div>
+                  <div className="text-xs text-muted-foreground">本次回答未返回来源引用。</div>
                 )}
               </div>
             </CardContent>

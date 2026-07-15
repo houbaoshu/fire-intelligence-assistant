@@ -6,7 +6,7 @@ The Interview Record feature transforms an authorized audio or video recording i
 
 ## 2. Status and Scope
 
-**Status:** Planned. No application code exists in the current repository, so implementation is not verified.
+**Status:** Implemented. Exactly-one-media validation, transcription, separate evidence and structured review, persistence, and versioned DOCX output are implemented.
 
 Current scope:
 
@@ -300,13 +300,13 @@ AI constraints:
 
 ## 17. Acceptance Criteria
 
-- [ ] Exactly one valid audio or video source creates one task.
-- [ ] Task polling stops at completed, failed, or cancelled status.
-- [ ] The transcript is preserved separately from the structured record.
-- [ ] Uncertain or inaudible speech is visible and not invented.
-- [ ] Users can review and edit interview metadata and structured content.
-- [ ] Saved changes persist through the backend.
-- [ ] The generated document matches saved reviewed structured data.
-- [ ] Finalized document versions are not silently overwritten.
-- [ ] Protected media, transcript, record, and document access requires authorization.
-- [ ] Available lint, type, test, migration, and build checks pass.
+- [x] Exactly one valid audio or video source creates one task.
+- [x] Task polling stops at completed, failed, or cancelled status.
+- [x] The transcript is preserved separately from the structured record.
+- [x] Uncertain or inaudible speech is visible and not invented.
+- [x] Users can review and edit interview metadata and structured content.
+- [x] Saved changes persist through the backend.
+- [x] The generated document matches saved reviewed structured data.
+- [x] Finalized document versions are not silently overwritten.
+- [x] Protected media, transcript, record, and document access requires authorization.
+- [x] Available lint, type, test, migration, and build checks pass.

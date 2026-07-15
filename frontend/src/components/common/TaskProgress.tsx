@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { useTaskProgress } from "@/hooks/useTaskProgress";
 import type { TaskState, TaskStatus } from "@/lib/services/tasks";
 import { cn } from "@/lib/utils";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 const LABELS: Record<TaskStatus, string> = {
   pending: "等待中",
@@ -49,12 +49,16 @@ export function TaskProgress({
   footer,
 }: TaskProgressProps) {
   const { task, error, isLoading } = useTaskProgress(taskId, { intervalMs });
+  const notified = useRef<string | null>(null);
 
-  // Fire callbacks based on terminal state (idempotent since polling stops).
-  if (task) {
+  useEffect(() => {
+    if (!task || !["completed", "failed"].includes(task.status)) return;
+    const key = `${task.id}:${task.attempt}:${task.status}`;
+    if (notified.current === key) return;
+    notified.current = key;
     if (task.status === "completed") onComplete?.(task);
     if (task.status === "failed") onFail?.(task);
-  }
+  }, [onComplete, onFail, task]);
 
   if (!taskId) return null;
 
@@ -62,9 +66,13 @@ export function TaskProgress({
     <div className={cn("rounded-lg border border-border bg-card p-4", className)}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          {task ? <StatusIcon status={task.status} /> : <Loader2 className="h-4 w-4 animate-spin" />}
+          {task ? (
+            <StatusIcon status={task.status} />
+          ) : (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          )}
           <div className="text-sm font-medium">
-            {task ? LABELS[task.status] ?? task.status : "查询任务状态…"}
+            {task ? (LABELS[task.status] ?? task.status) : "查询任务状态…"}
           </div>
         </div>
         <Badge variant="outline" className="font-mono text-[10px]">
@@ -79,8 +87,14 @@ export function TaskProgress({
         </div>
       )}
 
-      {task?.message && (
-        <div className="mt-2 text-xs text-muted-foreground">{task.message}</div>
+      {(task?.current_stage || task?.message) && (
+        <div className="mt-2 text-xs text-muted-foreground">
+          {task.current_stage || task.message}
+        </div>
+      )}
+
+      {task?.error_message && (
+        <div className="mt-2 text-xs text-destructive">{task.error_message}</div>
       )}
 
       {error && (

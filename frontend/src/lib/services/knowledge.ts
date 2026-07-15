@@ -2,14 +2,19 @@ import { api } from "../api-client";
 
 export type KnowledgeDocument = {
   id: string;
+  title: string;
   name: string;
-  size?: number;
-  content_type?: string;
-  status?: "pending" | "parsing" | "indexing" | "ready" | "failed" | string;
+  document_type?: string | null;
+  status: "uploaded" | "parsing" | "indexing" | "indexed" | "failed" | "outdated";
+  version?: string | null;
+  issuing_authority?: string | null;
+  effective_date?: string | null;
+  expiration_date?: string | null;
+  chunk_count?: number | null;
   error?: string | null;
-  created_at?: string;
-  updated_at?: string;
-  [k: string]: unknown;
+  task_id?: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export const knowledgeService = {
@@ -18,8 +23,12 @@ export const knowledgeService = {
   upload: (file: File) => {
     const fd = new FormData();
     fd.append("file", file);
-    return api.post<KnowledgeDocument>("/api/knowledge/documents", fd);
+    return api.post<{ document: KnowledgeDocument; task_id: string }>(
+      "/api/knowledge/documents",
+      fd,
+    );
   },
-  delete: (id: string) => api.delete<void>(`/api/knowledge/documents/${id}`, { responseType: "none" }),
-  rebuild: () => api.post<{ task_id?: string } | void>("/api/knowledge/rebuild"),
+  delete: (id: string) =>
+    api.delete<void>(`/api/knowledge/documents/${id}`, { responseType: "none" }),
+  rebuild: () => api.post<{ task_id: string }>("/api/knowledge/rebuild"),
 };
