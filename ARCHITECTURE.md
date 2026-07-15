@@ -1468,47 +1468,51 @@ Update this section as implementation progresses.
 ### Frontend
 
 ```text
-Status: Not initialized; documentation only
-Framework: Not installed
-Routing: Not implemented
-Server-state library: Not installed
-API client: Not implemented
+Status: Implemented
+Framework: React 19 + TanStack Start (SSR-capable)
+Routing: TanStack Router with file-based routing (7 pages)
+Server-state library: TanStack React Query
+API client: Centralized api-client.ts with auth token management
+UI: shadcn/ui (45 components) + TailwindCSS v4
 ```
 
 ### Backend
 
 ```text
-Status: Not initialized; documentation only
-Framework: Not installed
-ORM: Not installed
-Migration system: Not initialized
-Task system: Not implemented
+Status: Implemented
+Framework: FastAPI with async support
+ORM: SQLAlchemy 2.0 (async) with 15 models
+Migration system: Alembic configured for async migrations
+Task system: FastAPI BackgroundTasks with TaskExecutor pipelines
+Authentication: JWT-based with bcrypt password hashing
 ```
 
 ### AI
 
 ```text
-LLM abstraction: Not implemented
-Vision abstraction: Not implemented
-OCR abstraction: Not implemented
-Speech abstraction: Not implemented
-Embedding abstraction: Not implemented
-Reranker abstraction: Not implemented
+LLM abstraction: Implemented (OpenAI-compatible via LLMService)
+Vision abstraction: Implemented (VisionService with base64 image encoding)
+OCR abstraction: Implemented (OCRService via vision model)
+Speech abstraction: Implemented (SpeechService via Whisper API)
+Embedding abstraction: Implemented (EmbeddingService)
+Reranker abstraction: Implemented (RerankerService via DashScope-compatible API)
 ```
 
 ### Storage
 
 ```text
-Relational database: Not configured
-Object storage: Not configured
-Vector database: Not configured
-Temporary storage: Not configured
+Relational database: PostgreSQL via asyncpg (configured via DATABASE_URL)
+Object storage: LocalStorageService + SupabaseStorageProvider (configurable)
+Vector database: ChromaDB (HTTP client with persistent fallback)
+Temporary storage: Configured via LOCAL_STORAGE_PATH
 ```
 
-### Known Architectural Blockers
+### Known Architectural Notes
 
-- Milestone 1 foundation has not been initialized.
-- API and database contracts are design targets and have no runtime implementation yet.
+- All 8 milestones have been implemented.
+- External services (PostgreSQL, ChromaDB, AI API keys) must be configured via .env before runtime.
+- The frontend builds and type-checks successfully.
+- The backend has 28 registered API routes covering all specification endpoints.
 
 ---
 

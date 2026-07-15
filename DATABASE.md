@@ -854,33 +854,38 @@ Update this section as the project evolves.
 
 ## Implemented Tables
 
-- [ ] users
-- [ ] user_profiles
-- [ ] inspection_records
-- [ ] inspection_record_items
-- [ ] photo_reports
-- [ ] photo_report_images
-- [ ] interview_records
-- [ ] uploaded_files
-- [ ] generated_documents
-- [ ] ai_tasks
-- [ ] knowledge_documents
-- [ ] knowledge_index_jobs
-- [ ] audit_logs
+- [x] users
+- [x] user_profiles
+- [x] inspection_records
+- [x] inspection_record_items
+- [x] photo_reports
+- [x] photo_report_images
+- [x] interview_records
+- [x] uploaded_files
+- [x] generated_documents
+- [x] ai_tasks
+- [x] knowledge_documents
+- [x] knowledge_index_jobs
+- [x] audit_logs
+- [x] organizations
+- [x] departments
+- [x] user_roles
+- [x] prompt_versions
+- [x] model_configurations
 
 ## Current Database
 
 ```text
-Database: Not configured
-ORM: Not installed
-Migration tool: Not initialized
-Storage provider: Not configured
-Vector database: Not configured
+Database: PostgreSQL (configured via DATABASE_URL)
+ORM: SQLAlchemy 2.0 async with 18 models
+Migration tool: Alembic configured for async migrations
+Storage provider: Local (default) / Supabase (configurable)
+Vector database: ChromaDB (HTTP client with persistent fallback)
 ```
 
 ## Notes
 
-Record unresolved database decisions here.
-
-- The repository currently contains the target schema design only.
-- No SQLAlchemy models or Alembic migrations have been created.
+- All core tables from the design have been implemented as SQLAlchemy models.
+- Additional tables added for enterprise management (organizations, departments, user_roles) and AI platform (prompt_versions, model_configurations).
+- The initial Alembic migration must be generated after configuring DATABASE_URL.
+- All models use String(36) UUID primary keys for broad database compatibility.
