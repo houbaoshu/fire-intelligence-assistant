@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Runtime data
+data/app.db
+data/storage/
+data/temporary/
+data/generated/
+data/logs/
+data/templates/
+data/vector_store.sqlite
+
+# Env
+.env

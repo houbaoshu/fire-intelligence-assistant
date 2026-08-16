@@ -4,6 +4,7 @@
  * Uses VITE_API_BASE_URL. All backend calls MUST go through this module so
  * error shape, auth, and base URL handling stay consistent.
  */
+import { getAccessToken, getRefreshToken, getStoredUserJson, setTokens } from "./auth-tokens";
 
 export const API_BASE_URL: string =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, "") ?? "";
@@ -31,30 +32,9 @@ export class ApiError extends Error {
 }
 
 export class ApiUnavailableError extends ApiError {
-  constructor(message = "Backend base URL is not configured. Set VITE_API_BASE_URL.") {
+  constructor(message = "后端服务未配置。请设置 VITE_API_BASE_URL。") {
     super(0, "API_BASE_URL_MISSING", message);
     this.name = "ApiUnavailableError";
-  }
-}
-
-const AUTH_STORAGE_KEY = "fip.auth.token";
-
-export function getAuthToken(): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.localStorage.getItem(AUTH_STORAGE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-export function setAuthToken(token: string | null) {
-  if (typeof window === "undefined") return;
-  try {
-    if (token) window.localStorage.setItem(AUTH_STORAGE_KEY, token);
-    else window.localStorage.removeItem(AUTH_STORAGE_KEY);
-  } catch {
-    /* ignore */
   }
 }
 
@@ -84,10 +64,44 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
   return url.toString();
 }
 
-export async function apiRequest<T = unknown>(
-  path: string,
-  opts: RequestOptions = {},
-): Promise<T> {
+/** Single-flight refresh: concurrent 401s share one refresh request. */
+let refreshPromise: Promise<boolean> | null = null;
+
+async function doRefresh(): Promise<boolean> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    setTokens(null, null, null);
+    return false;
+  }
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    if (!res.ok) {
+      setTokens(null, null, null);
+      return false;
+    }
+    const data = (await res.json()) as { access_token: string };
+    const userJson = getStoredUserJson();
+    setTokens(data.access_token, refreshToken, userJson);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function refreshSession(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = doRefresh().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
+async function doRequest<T>(path: string, opts: RequestOptions, allowRetry: boolean): Promise<T> {
   const url = buildUrl(path, opts.query);
 
   const headers: Record<string, string> = { Accept: "application/json", ...(opts.headers ?? {}) };
@@ -100,7 +114,7 @@ export async function apiRequest<T = unknown>(
   }
 
   if (!opts.anonymous) {
-    const tok = getAuthToken();
+    const tok = getAccessToken();
     if (tok) headers["Authorization"] = `Bearer ${tok}`;
   }
 
@@ -113,16 +127,18 @@ export async function apiRequest<T = unknown>(
       signal: opts.signal,
     });
   } catch (err) {
-    throw new ApiError(
-      0,
-      "NETWORK_ERROR",
-      err instanceof Error ? err.message : "Network request failed",
-    );
+    throw new ApiError(0, "NETWORK_ERROR", err instanceof Error ? err.message : "网络请求失败");
+  }
+
+  if (res.status === 401 && !opts.anonymous && allowRetry) {
+    // access token expired: refresh once, then retry the original request
+    const ok = await refreshSession();
+    if (ok) return doRequest<T>(path, opts, false);
   }
 
   if (!res.ok) {
     let code = `HTTP_${res.status}`;
-    let message = res.statusText || "Request failed";
+    let message = res.statusText || "请求失败";
     let details: unknown;
     try {
       const j = (await res.json()) as Partial<ApiErrorBody>;
@@ -144,6 +160,10 @@ export async function apiRequest<T = unknown>(
   const text = await res.text();
   if (!text) return undefined as T;
   return JSON.parse(text) as T;
+}
+
+export async function apiRequest<T = unknown>(path: string, opts: RequestOptions = {}): Promise<T> {
+  return doRequest<T>(path, opts, true);
 }
 
 export const api = {

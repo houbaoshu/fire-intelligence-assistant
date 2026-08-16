@@ -21,7 +21,7 @@ export function useBackendHealth(options?: { refetchInterval?: number }) {
 
   let health: BackendHealth;
   if (!configured) health = { state: "unconfigured" };
-  else if (query.isLoading || query.isFetching && !query.data && !query.error)
+  else if (query.isLoading || (query.isFetching && !query.data && !query.error))
     health = { state: "checking" };
   else if (query.error)
     health = {

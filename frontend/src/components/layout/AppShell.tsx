@@ -9,9 +9,15 @@ import {
   BookOpen,
   Settings as SettingsIcon,
   Flame,
+  LogOut,
+  User as UserIcon,
+  ListChecks,
+  ShieldCheck,
+  BrainCircuit,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BackendStatusBadge } from "@/components/common/BackendStatus";
+import { useAuth } from "@/hooks/useAuth";
 
 type NavItem = { to: string; label: string; icon: ReactNode };
 
@@ -22,11 +28,18 @@ const NAV: NavItem[] = [
   { to: "/photo-report", label: "图像报告", icon: <Images className="h-4 w-4" /> },
   { to: "/interview-record", label: "询问笔录", icon: <Mic className="h-4 w-4" /> },
   { to: "/knowledge-base", label: "知识库", icon: <BookOpen className="h-4 w-4" /> },
+  { to: "/tasks", label: "任务中心", icon: <ListChecks className="h-4 w-4" /> },
   { to: "/settings", label: "设置", icon: <SettingsIcon className="h-4 w-4" /> },
+];
+
+const ADMIN_NAV: NavItem[] = [
+  { to: "/admin", label: "系统管理", icon: <ShieldCheck className="h-4 w-4" /> },
+  { to: "/ai-platform", label: "AI 平台", icon: <BrainCircuit className="h-4 w-4" /> },
 ];
 
 export function AppShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { user, logout } = useAuth();
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -41,28 +54,32 @@ export function AppShell() {
           </div>
         </div>
         <nav className="flex-1 space-y-0.5 p-2">
-          {NAV.map((item) => {
-            const active =
-              item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition",
-                  "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  active &&
-                    "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
-                )}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
+          {NAV.map((item) => (
+            <NavLink key={item.to} item={item} pathname={pathname} />
+          ))}
+          {user?.role === "admin" &&
+            ADMIN_NAV.map((item) => <NavLink key={item.to} item={item} pathname={pathname} />)}
         </nav>
-        <div className="border-t border-sidebar-border p-3 text-[10px] text-muted-foreground">
-          v0.1 · Frontend Foundation
+        <div className="border-t border-sidebar-border p-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <UserIcon className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium">
+                {user?.full_name || user?.email || "未登录"}
+              </div>
+              <div className="text-[10px] text-muted-foreground">{roleLabel(user?.role)}</div>
+            </div>
+            <button
+              onClick={logout}
+              title="退出登录"
+              aria-label="退出登录"
+              className="rounded-md p-1.5 text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -82,26 +99,60 @@ export function AppShell() {
 }
 
 function MobileNav({ pathname }: { pathname: string }) {
+  const { user } = useAuth();
   return (
     <div className="flex items-center gap-1 overflow-x-auto md:hidden">
-      {NAV.map((item) => {
-        const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
-        return (
-          <Link
-            key={item.to}
-            to={item.to}
-            className={cn(
-              "flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-xs",
-              active ? "bg-accent text-accent-foreground" : "text-muted-foreground",
-            )}
-          >
-            {item.icon}
-            {item.label}
-          </Link>
-        );
-      })}
+      {NAV.map((item) => (
+        <MobileLink key={item.to} item={item} pathname={pathname} />
+      ))}
+      {user?.role === "admin" &&
+        ADMIN_NAV.map((item) => <MobileLink key={item.to} item={item} pathname={pathname} />)}
     </div>
   );
+}
+
+function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
+  const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+  return (
+    <Link
+      to={item.to}
+      className={cn(
+        "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition",
+        "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+        active && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
+      )}
+    >
+      {item.icon}
+      <span>{item.label}</span>
+    </Link>
+  );
+}
+
+function MobileLink({ item, pathname }: { item: NavItem; pathname: string }) {
+  const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+  return (
+    <Link
+      to={item.to}
+      className={cn(
+        "flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-xs",
+        active ? "bg-accent text-accent-foreground" : "text-muted-foreground",
+      )}
+    >
+      {item.icon}
+      {item.label}
+    </Link>
+  );
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: "管理员",
+  supervisor: "主管",
+  inspector: "检查员",
+  viewer: "访客",
+};
+
+function roleLabel(role?: string): string {
+  return (role && ROLE_LABELS[role]) || role || "未知";
 }
 
 export function PageHeader({
@@ -117,9 +168,7 @@ export function PageHeader({
     <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {description && (
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-        )}
+        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>

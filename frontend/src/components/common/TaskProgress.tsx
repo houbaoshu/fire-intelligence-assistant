@@ -2,18 +2,9 @@ import { CheckCircle2, XCircle, Loader2, Clock, Ban } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useTaskProgress } from "@/hooks/useTaskProgress";
-import type { TaskState, TaskStatus } from "@/lib/services/tasks";
+import { TASK_STATUS_LABELS, type TaskOut, type TaskStatus } from "@/lib/services/tasks";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
-
-const LABELS: Record<TaskStatus, string> = {
-  pending: "等待中",
-  queued: "已排队",
-  processing: "处理中",
-  completed: "已完成",
-  failed: "失败",
-  cancelled: "已取消",
-};
 
 function StatusIcon({ status }: { status: TaskStatus }) {
   const cls = "h-4 w-4";
@@ -34,8 +25,8 @@ function StatusIcon({ status }: { status: TaskStatus }) {
 export type TaskProgressProps = {
   taskId: string | null | undefined;
   intervalMs?: number;
-  onComplete?: (task: TaskState) => void;
-  onFail?: (task: TaskState) => void;
+  onComplete?: (task: TaskOut) => void;
+  onFail?: (task: TaskOut) => void;
   className?: string;
   footer?: ReactNode;
 };
@@ -50,7 +41,6 @@ export function TaskProgress({
 }: TaskProgressProps) {
   const { task, error, isLoading } = useTaskProgress(taskId, { intervalMs });
 
-  // Fire callbacks based on terminal state (idempotent since polling stops).
   if (task) {
     if (task.status === "completed") onComplete?.(task);
     if (task.status === "failed") onFail?.(task);
@@ -62,10 +52,17 @@ export function TaskProgress({
     <div className={cn("rounded-lg border border-border bg-card p-4", className)}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          {task ? <StatusIcon status={task.status} /> : <Loader2 className="h-4 w-4 animate-spin" />}
+          {task ? (
+            <StatusIcon status={task.status} />
+          ) : (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          )}
           <div className="text-sm font-medium">
-            {task ? LABELS[task.status] ?? task.status : "查询任务状态…"}
+            {task ? (TASK_STATUS_LABELS[task.status] ?? task.status) : "查询任务状态…"}
           </div>
+          {task?.current_stage && task.status === "processing" && (
+            <span className="text-xs text-muted-foreground">· {task.current_stage}</span>
+          )}
         </div>
         <Badge variant="outline" className="font-mono text-[10px]">
           {taskId.slice(0, 8)}
@@ -79,8 +76,10 @@ export function TaskProgress({
         </div>
       )}
 
-      {task?.message && (
-        <div className="mt-2 text-xs text-muted-foreground">{task.message}</div>
+      {task?.status === "failed" && task.error_message && (
+        <div className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
+          {task.error_message}
+        </div>
       )}
 
       {error && (

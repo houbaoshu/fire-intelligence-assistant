@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { taskService, isTerminalTaskState, type TaskState } from "@/lib/services/tasks";
+import { taskService, isTerminalTaskState, type TaskOut } from "@/lib/services/tasks";
 
 export function useTaskProgress(
   taskId: string | null | undefined,
@@ -11,7 +11,7 @@ export function useTaskProgress(
     queryFn: ({ signal }) => taskService.get(taskId!, signal),
     enabled: !!taskId,
     refetchInterval: (q) => {
-      const data = q.state.data as TaskState | undefined;
+      const data = q.state.data as TaskOut | undefined;
       if (!data) return interval;
       return isTerminalTaskState(data.status) ? false : interval;
     },

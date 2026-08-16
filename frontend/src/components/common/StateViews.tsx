@@ -45,11 +45,7 @@ function Frame({
   );
 }
 
-export function LoadingState({
-  title = "加载中…",
-  description,
-  className,
-}: BaseProps) {
+export function LoadingState({ title = "加载中…", description, className }: BaseProps) {
   return (
     <Frame
       icon={<Loader2 className="h-5 w-5 animate-spin" />}

@@ -9,181 +9,327 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as RegulationQaRouteImport } from './routes/regulation-qa'
-import { Route as PhotoReportRouteImport } from './routes/photo-report'
-import { Route as KnowledgeBaseRouteImport } from './routes/knowledge-base'
-import { Route as InterviewRecordRouteImport } from './routes/interview-record'
-import { Route as InspectionRecordRouteImport } from './routes/inspection-record'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedTasksRouteImport } from './routes/_authenticated/tasks'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedRegulationQaRouteImport } from './routes/_authenticated/regulation-qa'
+import { Route as AuthenticatedPhotoReportRouteImport } from './routes/_authenticated/photo-report'
+import { Route as AuthenticatedKnowledgeBaseRouteImport } from './routes/_authenticated/knowledge-base'
+import { Route as AuthenticatedInterviewRecordRouteImport } from './routes/_authenticated/interview-record'
+import { Route as AuthenticatedInspectionRecordRouteImport } from './routes/_authenticated/inspection-record'
+import { Route as AuthenticatedAiPlatformRouteImport } from './routes/_authenticated/ai-platform'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RegulationQaRoute = RegulationQaRouteImport.update({
-  id: '/regulation-qa',
-  path: '/regulation-qa',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PhotoReportRoute = PhotoReportRouteImport.update({
-  id: '/photo-report',
-  path: '/photo-report',
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const KnowledgeBaseRoute = KnowledgeBaseRouteImport.update({
-  id: '/knowledge-base',
-  path: '/knowledge-base',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InterviewRecordRoute = InterviewRecordRouteImport.update({
-  id: '/interview-record',
-  path: '/interview-record',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InspectionRecordRoute = InspectionRecordRouteImport.update({
-  id: '/inspection-record',
-  path: '/inspection-record',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IndexRoute = IndexRouteImport.update({
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedTasksRoute = AuthenticatedTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedRegulationQaRoute =
+  AuthenticatedRegulationQaRouteImport.update({
+    id: '/regulation-qa',
+    path: '/regulation-qa',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedPhotoReportRoute =
+  AuthenticatedPhotoReportRouteImport.update({
+    id: '/photo-report',
+    path: '/photo-report',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedKnowledgeBaseRoute =
+  AuthenticatedKnowledgeBaseRouteImport.update({
+    id: '/knowledge-base',
+    path: '/knowledge-base',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedInterviewRecordRoute =
+  AuthenticatedInterviewRecordRouteImport.update({
+    id: '/interview-record',
+    path: '/interview-record',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedInspectionRecordRoute =
+  AuthenticatedInspectionRecordRouteImport.update({
+    id: '/inspection-record',
+    path: '/inspection-record',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedAiPlatformRoute = AuthenticatedAiPlatformRouteImport.update({
+  id: '/ai-platform',
+  path: '/ai-platform',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/inspection-record': typeof InspectionRecordRoute
-  '/interview-record': typeof InterviewRecordRoute
-  '/knowledge-base': typeof KnowledgeBaseRoute
-  '/photo-report': typeof PhotoReportRoute
-  '/regulation-qa': typeof RegulationQaRoute
-  '/settings': typeof SettingsRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/admin': typeof AuthenticatedAdminRoute
+  '/ai-platform': typeof AuthenticatedAiPlatformRoute
+  '/inspection-record': typeof AuthenticatedInspectionRecordRoute
+  '/interview-record': typeof AuthenticatedInterviewRecordRoute
+  '/knowledge-base': typeof AuthenticatedKnowledgeBaseRoute
+  '/photo-report': typeof AuthenticatedPhotoReportRoute
+  '/regulation-qa': typeof AuthenticatedRegulationQaRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/tasks': typeof AuthenticatedTasksRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/inspection-record': typeof InspectionRecordRoute
-  '/interview-record': typeof InterviewRecordRoute
-  '/knowledge-base': typeof KnowledgeBaseRoute
-  '/photo-report': typeof PhotoReportRoute
-  '/regulation-qa': typeof RegulationQaRoute
-  '/settings': typeof SettingsRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/admin': typeof AuthenticatedAdminRoute
+  '/ai-platform': typeof AuthenticatedAiPlatformRoute
+  '/inspection-record': typeof AuthenticatedInspectionRecordRoute
+  '/interview-record': typeof AuthenticatedInterviewRecordRoute
+  '/knowledge-base': typeof AuthenticatedKnowledgeBaseRoute
+  '/photo-report': typeof AuthenticatedPhotoReportRoute
+  '/regulation-qa': typeof AuthenticatedRegulationQaRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/tasks': typeof AuthenticatedTasksRoute
+  '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/inspection-record': typeof InspectionRecordRoute
-  '/interview-record': typeof InterviewRecordRoute
-  '/knowledge-base': typeof KnowledgeBaseRoute
-  '/photo-report': typeof PhotoReportRoute
-  '/regulation-qa': typeof RegulationQaRoute
-  '/settings': typeof SettingsRoute
+  '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/ai-platform': typeof AuthenticatedAiPlatformRoute
+  '/_authenticated/inspection-record': typeof AuthenticatedInspectionRecordRoute
+  '/_authenticated/interview-record': typeof AuthenticatedInterviewRecordRoute
+  '/_authenticated/knowledge-base': typeof AuthenticatedKnowledgeBaseRoute
+  '/_authenticated/photo-report': typeof AuthenticatedPhotoReportRoute
+  '/_authenticated/regulation-qa': typeof AuthenticatedRegulationQaRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/tasks': typeof AuthenticatedTasksRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/login'
+    | '/register'
+    | '/admin'
+    | '/ai-platform'
     | '/inspection-record'
     | '/interview-record'
     | '/knowledge-base'
     | '/photo-report'
     | '/regulation-qa'
     | '/settings'
+    | '/tasks'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
+    | '/login'
+    | '/register'
+    | '/admin'
+    | '/ai-platform'
     | '/inspection-record'
     | '/interview-record'
     | '/knowledge-base'
     | '/photo-report'
     | '/regulation-qa'
     | '/settings'
+    | '/tasks'
+    | '/'
   id:
     | '__root__'
-    | '/'
-    | '/inspection-record'
-    | '/interview-record'
-    | '/knowledge-base'
-    | '/photo-report'
-    | '/regulation-qa'
-    | '/settings'
+    | '/_authenticated'
+    | '/login'
+    | '/register'
+    | '/_authenticated/admin'
+    | '/_authenticated/ai-platform'
+    | '/_authenticated/inspection-record'
+    | '/_authenticated/interview-record'
+    | '/_authenticated/knowledge-base'
+    | '/_authenticated/photo-report'
+    | '/_authenticated/regulation-qa'
+    | '/_authenticated/settings'
+    | '/_authenticated/tasks'
+    | '/_authenticated/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  InspectionRecordRoute: typeof InspectionRecordRoute
-  InterviewRecordRoute: typeof InterviewRecordRoute
-  KnowledgeBaseRoute: typeof KnowledgeBaseRoute
-  PhotoReportRoute: typeof PhotoReportRoute
-  RegulationQaRoute: typeof RegulationQaRoute
-  SettingsRoute: typeof SettingsRoute
+  AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/regulation-qa': {
-      id: '/regulation-qa'
-      path: '/regulation-qa'
-      fullPath: '/regulation-qa'
-      preLoaderRoute: typeof RegulationQaRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/photo-report': {
-      id: '/photo-report'
-      path: '/photo-report'
-      fullPath: '/photo-report'
-      preLoaderRoute: typeof PhotoReportRouteImport
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/knowledge-base': {
-      id: '/knowledge-base'
-      path: '/knowledge-base'
-      fullPath: '/knowledge-base'
-      preLoaderRoute: typeof KnowledgeBaseRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/interview-record': {
-      id: '/interview-record'
-      path: '/interview-record'
-      fullPath: '/interview-record'
-      preLoaderRoute: typeof InterviewRecordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/inspection-record': {
-      id: '/inspection-record'
-      path: '/inspection-record'
-      fullPath: '/inspection-record'
-      preLoaderRoute: typeof InspectionRecordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/tasks': {
+      id: '/_authenticated/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof AuthenticatedTasksRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/regulation-qa': {
+      id: '/_authenticated/regulation-qa'
+      path: '/regulation-qa'
+      fullPath: '/regulation-qa'
+      preLoaderRoute: typeof AuthenticatedRegulationQaRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/photo-report': {
+      id: '/_authenticated/photo-report'
+      path: '/photo-report'
+      fullPath: '/photo-report'
+      preLoaderRoute: typeof AuthenticatedPhotoReportRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/knowledge-base': {
+      id: '/_authenticated/knowledge-base'
+      path: '/knowledge-base'
+      fullPath: '/knowledge-base'
+      preLoaderRoute: typeof AuthenticatedKnowledgeBaseRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/interview-record': {
+      id: '/_authenticated/interview-record'
+      path: '/interview-record'
+      fullPath: '/interview-record'
+      preLoaderRoute: typeof AuthenticatedInterviewRecordRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/inspection-record': {
+      id: '/_authenticated/inspection-record'
+      path: '/inspection-record'
+      fullPath: '/inspection-record'
+      preLoaderRoute: typeof AuthenticatedInspectionRecordRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/ai-platform': {
+      id: '/_authenticated/ai-platform'
+      path: '/ai-platform'
+      fullPath: '/ai-platform'
+      preLoaderRoute: typeof AuthenticatedAiPlatformRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
   }
 }
 
+interface AuthenticatedRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedAiPlatformRoute: typeof AuthenticatedAiPlatformRoute
+  AuthenticatedInspectionRecordRoute: typeof AuthenticatedInspectionRecordRoute
+  AuthenticatedInterviewRecordRoute: typeof AuthenticatedInterviewRecordRoute
+  AuthenticatedKnowledgeBaseRoute: typeof AuthenticatedKnowledgeBaseRoute
+  AuthenticatedPhotoReportRoute: typeof AuthenticatedPhotoReportRoute
+  AuthenticatedRegulationQaRoute: typeof AuthenticatedRegulationQaRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedTasksRoute: typeof AuthenticatedTasksRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+}
+
+const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedAiPlatformRoute: AuthenticatedAiPlatformRoute,
+  AuthenticatedInspectionRecordRoute: AuthenticatedInspectionRecordRoute,
+  AuthenticatedInterviewRecordRoute: AuthenticatedInterviewRecordRoute,
+  AuthenticatedKnowledgeBaseRoute: AuthenticatedKnowledgeBaseRoute,
+  AuthenticatedPhotoReportRoute: AuthenticatedPhotoReportRoute,
+  AuthenticatedRegulationQaRoute: AuthenticatedRegulationQaRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedTasksRoute: AuthenticatedTasksRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+}
+
+const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
+  AuthenticatedRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  InspectionRecordRoute: InspectionRecordRoute,
-  InterviewRecordRoute: InterviewRecordRoute,
-  KnowledgeBaseRoute: KnowledgeBaseRoute,
-  PhotoReportRoute: PhotoReportRoute,
-  RegulationQaRoute: RegulationQaRoute,
-  SettingsRoute: SettingsRoute,
+  AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  LoginRoute: LoginRoute,
+  RegisterRoute: RegisterRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

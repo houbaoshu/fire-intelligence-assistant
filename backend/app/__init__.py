@@ -1,0 +1,1 @@
+"""Fire Intelligence Platform backend."""
