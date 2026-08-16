@@ -1,518 +1,113 @@
 # PROJECT.md
 
-# Fire Intelligence Platform
+# Fire Intelligence Platform 项目说明
 
-## Overview
+本文档描述项目的定位、目标、模块划分与环境变量。
 
-Fire Intelligence Platform is an AI-powered assistant for fire safety inspection officers.
-
-The project digitizes the entire inspection workflow and integrates AI to improve document generation, knowledge retrieval, and inspection efficiency.
-
-The system follows a Frontend + Backend architecture.
-
-The frontend is responsible for user interaction.
-
-The backend is responsible for AI reasoning and business logic.
+技术栈见 ARCHITECTURE.md。AI 工作流见 AI_CONTEXT.md。API 契约见 API.md。数据表结构见 DATABASE.md。编码规则见 AGENTS.md。里程碑规划见 ROADMAP.md。
 
 ---
 
-# Technology Stack
+# 项目定位
 
-## Frontend
+Fire Intelligence Platform 是面向消防安全检查人员的 AI 辅助系统。
 
-- React
-- TypeScript
-- Vite
-- TailwindCSS
-- shadcn/ui
-- TanStack Query
+项目将检查工作全流程数字化，并通过 AI 提升文书生成、知识检索与检查工作的效率。
 
-## Backend
+系统采用 前端 + 后端 架构：
 
-- FastAPI
-- SQLAlchemy
-- Pydantic
-- Alembic
-
-## AI
-
-- OpenAI Compatible APIs
-- Qwen
-- DeepSeek
-- GPT
-- Vision Models
-
-## Knowledge Base
-
-- Chroma
-- Local Embedding Models
-- Reranker
-
-## Storage
-
-- PostgreSQL
-- Supabase Storage
+- 前端负责用户交互
+- 后端负责 AI 推理与业务逻辑
 
 ---
 
-# Project Goals
+# 项目目标
 
-The system should eventually support:
+系统最终需要支持：
 
-✓ Fire regulation QA
-
-✓ Inspection record generation
-
-✓ Photo report generation
-
-✓ Interview record generation
-
-✓ Knowledge base retrieval
-
-✓ OCR
-
-✓ Video understanding
-
-✓ AI-assisted report generation
-
-✓ User authentication
-
-✓ Statistics dashboard
+- 消防法规智能问答（Fire Regulation QA）
+- 检查记录生成（Inspection Record）
+- 影像报告生成（Photo Report）
+- 询问笔录生成（Interview Record）
+- 知识库检索（Knowledge Base）
+- OCR 文字识别
+- 视频理解（Video Understanding）
+- AI 辅助报告生成
+- 用户认证（Authentication）
+- 统计看板（Statistics Dashboard）
 
 ---
 
-# Overall Architecture
+# 前端模块
 
-```text
-Frontend
+目标前端模块：
 
-↓
-
-FastAPI
-
-↓
-
-AI Services
-
-↓
-
-RAG
-
-↓
-
-Database
-
-↓
-
-Storage
-```
+- Dashboard
+- Fire Regulation QA
+- Inspection Record
+- Photo Report
+- Interview Record
+- Knowledge Base
+- Statistics
+- Settings
+- Authentication
 
 ---
 
-# Frontend Modules
+# 后端模块
 
-Target frontend modules:
+目标后端模块：
 
-Dashboard
-
-Fire Regulation QA
-
-Inspection Record
-
-Photo Report
-
-Interview Record
-
-Knowledge Base
-
-Statistics
-
-Settings
-
-Authentication
+- Authentication
+- User Management
+- Inspection Records
+- Photo Reports
+- Interview Records
+- Knowledge Base
+- AI Services
+- OCR
+- Vision
+- Document Generation
+- Statistics
 
 ---
 
-# Backend Modules
+# 前后端职责划分
 
-Target backend modules:
+后端统一负责业务逻辑、AI、OCR、视频处理、Vision、知识检索、文档生成、认证、数据库与存储。
 
-Authentication
-
-User Management
-
-Inspection Records
-
-Photo Reports
-
-Interview Records
-
-Knowledge Base
-
-AI Services
-
-OCR
-
-Vision
-
-Document Generation
-
-Statistics
+前端不重复实现任何后端逻辑。详细职责规则见 AGENTS.md。
 
 ---
 
-# AI Architecture
+# API 约定
 
-LLM
+RESTful API，JSON 响应。
 
-Responsible for:
+长时间运行的 AI 任务返回 task_id，前端轮询任务状态。
 
-- Question answering
-- Text generation
-- Report generation
-
-Vision
-
-Responsible for:
-
-- Image understanding
-- Video understanding
-
-OCR
-
-Responsible for:
-
-- Text extraction
-
-RAG
-
-Responsible for:
-
-- Knowledge retrieval
-
-Embedding
-
-Responsible for:
-
-- Vector generation
-
-Reranker
-
-Responsible for:
-
-- Retrieval ranking
+详细 API 契约见 API.md，任务状态定义见 DATABASE.md。
 
 ---
 
-# Knowledge Base Workflow
+# 环境变量
 
-```text
-Documents
+目标环境变量名清单：
 
-↓
+前端
 
-Parsing
+- VITE_API_BASE_URL
 
-↓
+后端
 
-Chunking
+- OPENAI_API_KEY
+- LLM_MODEL
+- VISION_MODEL
+- EMBEDDING_MODEL
+- DATABASE_URL
+- SUPABASE_URL（仅 Supabase 方案需要）
+- SUPABASE_KEY（仅 Supabase 方案需要）
 
-↓
+文件存储支持 Supabase Storage 或本地存储，由环境变量配置二选一。
 
-Embedding
-
-↓
-
-Vector Database
-
-↓
-
-Retrieval
-
-↓
-
-Reranking
-
-↓
-
-LLM
-```
-
-Target document types:
-
-- PDF
-- DOC
-- DOCX
-- PPT
-- PPTX
-- TXT
-- Markdown
-
-Future:
-
-- XLSX
-
-The currently approved upload contract in `API.md` includes PDF, DOC, DOCX, PPT, and PPTX only. TXT and Markdown require an API contract update before implementation.
-
----
-
-# Video Workflow
-
-```text
-Upload Video
-
-↓
-
-Extract Frames
-
-↓
-
-Vision Model
-
-↓
-
-OCR
-
-↓
-
-LLM
-
-↓
-
-Generate Report
-
-↓
-
-Word Template
-
-↓
-
-Download
-```
-
----
-
-# Document Generation Workflow
-
-Inspection Record
-
-Video
-
-↓
-
-AI Extraction
-
-↓
-
-Structured Fields
-
-↓
-
-User Review
-
-↓
-
-Word Template
-
-↓
-
-Download
-
-Photo Report
-
-Video
-
-↓
-
-Key Frames
-
-↓
-
-Vision
-
-↓
-
-Caption
-
-↓
-
-Word Template
-
-↓
-
-Download
-
-Interview Record
-
-Audio / Video
-
-↓
-
-Speech Recognition
-
-↓
-
-LLM
-
-↓
-
-Structured Interview
-
-↓
-
-Word Template
-
-↓
-
-Download
-
----
-
-# Backend Responsibilities
-
-The backend owns:
-
-Business Logic
-
-AI
-
-OCR
-
-Video Processing
-
-Vision
-
-Knowledge Retrieval
-
-Document Generation
-
-Authentication
-
-Database
-
-Storage
-
-The frontend should never duplicate backend logic.
-
----
-
-# Current Development Status
-
-The repository currently contains documentation and specifications only. No frontend, backend, database, or infrastructure implementation has been initialized.
-
-## Implementation Checklist
-
-- [ ] Authentication
-- [ ] Dashboard
-- [ ] Fire Regulation QA
-- [ ] Inspection Record
-- [ ] Photo Report
-- [ ] Interview Record
-- [ ] Knowledge Base
-- [ ] Statistics
-- [ ] Settings
-
-Update this checklist continuously.
-
----
-
-# API Convention
-
-RESTful API
-
-JSON Response
-
-Long-running AI tasks return:
-
-task_id
-
-The frontend polls task status.
-
----
-
-# Task Status
-
-Possible task states:
-
-pending
-
-queued
-
-processing
-
-completed
-
-failed
-
-cancelled
-
----
-
-# Environment Variables
-
-Frontend
-
-VITE_API_BASE_URL
-
-Backend
-
-OPENAI_API_KEY
-
-LLM_MODEL
-
-VISION_MODEL
-
-EMBEDDING_MODEL
-
-DATABASE_URL
-
-SUPABASE_URL
-
-SUPABASE_KEY
-
-These are target configuration names. No environment files or runtime configuration modules currently exist in the repository.
-
----
-
-# Coding Principles
-
-Prefer reuse.
-
-Avoid duplication.
-
-Keep frontend lightweight.
-
-Keep backend authoritative.
-
-Keep AI logic centralized.
-
-Keep prompts reusable.
-
----
-
-# Future Roadmap
-
-Future features include:
-
-- Agent Workflow
-- Multi-Agent Collaboration
-- MCP Integration
-- Fine-grained Permission Management
-- Workflow Engine
-- Batch Document Generation
-- AI Quality Evaluation
-- Audit Log
-- Model Management
-- Prompt Management
-
----
-
-# Notes
-
-This document should evolve together with the project.
-
-Keep architecture diagrams and module descriptions up to date.
-
-Do not store implementation details that belong in code.
-
-Use this document as the single source of truth for project structure.
+严禁在代码中硬编码任何密钥、密码、URL 或 Token。

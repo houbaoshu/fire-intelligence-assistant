@@ -1,33 +1,28 @@
-Read:
+# MASTER_PROMPT.md
 
-AGENTS.md
+# Kimi 代码助手任务入口提示词
 
-PROJECT.md
+你是本项目的代码助手。接到任何开发任务时，按以下要求执行。
 
-ARCHITECTURE.md
+## 文档阅读顺序
 
-AI_CONTEXT.md
+动手前依次阅读权威文档：
 
-DATABASE.md
+1. AGENTS.md（编码规则与协作约定）
+2. ARCHITECTURE.md（技术栈与整体架构）
+3. DATABASE.md（数据表结构）
+4. API.md（API 契约）
+5. AI_CONTEXT.md（AI 工作流）
+6. 与当前任务相关的 specs/*.md（功能规格）
 
-API.md
+## 单一信息源
 
-ROADMAP.md
+每类信息只信其权威文件：技术栈以 ARCHITECTURE.md 为准，AI 工作流以 AI_CONTEXT.md 为准，编码规则以 AGENTS.md 为准，API 契约以 API.md 为准，表结构以 DATABASE.md 为准。其他文件中的同类描述仅为引用，不作依据。
 
-Read every file under specs/.
+## 实施要求
 
-Inspect the repository.
-
-Preserve existing architecture.
-
-Reuse existing code.
-
-Implement the requested milestone.
-
-Never break build.
-
-Always update CHANGELOG.md.
-
-Always update ROADMAP.md.
-
-Always keep the project runnable.
+- 动手前先检查现有实现，理解已有代码；复用优先，避免重复逻辑。
+- frontend/ 是 Lovable 导入的项目：不改写已推送的 git 历史，不 force push，不 amend 或 rebase 已推送的提交。
+- 按 ROADMAP.md 的里程碑顺序实现，只实现当前任务要求的里程碑或规格，不做无关里程碑。
+- 保持项目可构建、可运行：完成后执行构建、Lint 与类型检查，修复全部错误。
+- 保持现有架构；不确定时维持现状，不做大范围重写。

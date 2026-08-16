@@ -1,437 +1,262 @@
 # ROADMAP.md
 
-# Fire Intelligence Platform Roadmap
+# Fire Intelligence Platform 开发路线图
 
-This document defines the long-term development roadmap of the Fire Intelligence Platform.
+本文档定义 Fire Intelligence Platform 的长期开发路线图，描述产品的演进方向，而不是具体的编码任务。
 
-It describes the evolution of the product rather than individual coding tasks.
+各功能的详细实现要求维护在 `specs/` 目录下的独立规格文档中，目录结构见下方"规格文档"章节。
 
-Detailed implementation requirements belong in the dedicated documents under `specs/`. The current directory structure is recorded in the **Specification Documents** section below and in `specs/README.md`.
-
-The roadmap should remain stable.
-
-Individual specifications may evolve independently.
+路线图应保持稳定；各规格文档可独立演进。
 
 ---
 
-# Vision
+# 愿景
 
-Build a complete AI-powered platform for fire safety inspection.
+构建完整的 AI 消防检查平台，在检查员的整个工作流程中提供辅助：
 
-The platform should assist inspectors throughout the entire workflow:
-
-Preparation
-
-↓
-
-Inspection
-
-↓
-
-Evidence Collection
-
-↓
-
-Document Generation
-
-↓
-
-Knowledge Retrieval
-
-↓
-
-Review
-
-↓
-
-Statistics
-
-↓
-
-Management
-
-↓
-
-Continuous AI Assistance
+准备 → 检查 → 取证 → 文书生成 → 知识检索 → 复核 → 统计 → 管理 → 持续的 AI 辅助
 
 ---
 
-# Development Principles
+# 开发原则
 
-Development proceeds milestone by milestone.
+按里程碑逐个推进。每个里程碑必须：
 
-Each milestone should:
+- 不破坏已有功能
+- 保持项目可构建
+- 遵循 AGENTS.md
+- 遵循 ARCHITECTURE.md
+- 遵循 AI_CONTEXT.md
+- 遵循 API.md
+- 遵循 DATABASE.md
 
-- preserve existing functionality
-- keep the project buildable
-- follow AGENTS.md
-- follow ARCHITECTURE.md
-- follow AI_CONTEXT.md
-- follow API.md
-- follow DATABASE.md
-
-Do not begin a later milestone before the current milestone reaches a usable state.
+在当前里程碑达到可用状态之前，不开始后续里程碑。
 
 ---
 
-# Milestone 1
+# Milestone 1：基础平台
 
-## Foundation Platform
+## 目标
 
-### Goal
+搭建稳定的技术基础。
 
-Build a stable technical foundation.
+## 范围
 
-### Scope
+前端
 
-Frontend
+- 项目初始化
+- 路由
+- 布局
+- 导航
+- 主题
+- 共享组件
 
-- Project initialization
-- Routing
-- Layout
-- Navigation
-- Theme
-- Shared components
+后端
 
-Backend
+- FastAPI 初始化
+- 配置
+- 日志
+- API 约定
+- 错误处理
 
-- FastAPI initialization
-- Configuration
-- Logging
-- API conventions
-- Error handling
+基础设施
 
-Infrastructure
+- 数据库
+- 对象存储
+- 认证
+- 环境变量配置
 
-- Database
-- Object storage
-- Authentication
-- Environment configuration
+## 交付物
 
-### Deliverables
-
-- Stable frontend
-- Stable backend
-- Authentication
-- Health endpoint
+- 稳定的前端
+- 稳定的后端
+- 用户认证
+- 健康检查接口
 - API client
-- Shared layouts
-
-### Status
-
-- [ ]
+- 共享布局
 
 ---
 
-# Milestone 2
+# Milestone 2：消防检查工作流
 
-## Fire Inspection Workflow
+## 目标
 
-### Goal
+支持日常检查工作。
 
-Support daily inspection work.
+## 范围
 
-### Modules
+- Inspection Record
+- Photo Report
+- Interview Record
+- Statistics
+- Settings
 
-Inspection Record
+## 交付物
 
-Photo Report
+用户可以：
 
-Interview Record
-
-Statistics
-
-Settings
-
-### Deliverables
-
-Users can:
-
-- upload inspection materials
-- manage inspection records
-- edit generated content
-- download documents
-
-### Status
-
-- [ ]
+- 上传检查材料
+- 管理检查记录
+- 编辑生成的内容
+- 下载文书
 
 ---
 
-# Milestone 3
+# Milestone 3：消防法规知识库
 
-## Fire Regulation Knowledge Base
+## 目标
 
-### Goal
+提供法规检索与智能问答。
 
-Provide regulation retrieval and intelligent QA.
+## 范围
 
-### Modules
+- 文档解析（Document Parsing）
+- 语义切分（Semantic Chunking）
+- Embedding
+- Retriever
+- Reranker
+- Fire Regulation QA
+- 知识库管理
 
-Document Parsing
+## 交付物
 
-Semantic Chunking
+用户可以：
 
-Embedding
-
-Retriever
-
-Reranker
-
-Fire Regulation QA
-
-Knowledge Management
-
-### Deliverables
-
-Users can:
-
-- upload regulations
-- rebuild indexes
-- search regulations
-- ask legal questions
-- receive cited answers
-
-### Status
-
-- [ ]
+- 上传法规文档
+- 重建索引
+- 检索法规
+- 提问法律问题
+- 获得带引用来源的回答
 
 ---
 
-# Milestone 4
+# Milestone 4：AI 文书生成
 
-## AI Document Generation
+## 目标
 
-### Goal
+自动生成正式检查文书。
 
-Generate official inspection documents automatically.
+## 范围
 
-### Modules
+- Inspection Record 生成
+- Photo Report 生成
+- Interview Record 生成
+- 模板渲染（Template Rendering）
+- 文书下载
 
-Inspection Record Generation
+AI 处理管线：Video → Vision → OCR → LLM → 结构化数据 → Word Template → 下载
 
-Photo Report Generation
+## 交付物
 
-Interview Record Generation
+支持自动生成：
 
-Template Rendering
-
-Document Download
-
-### AI Pipeline
-
-Video
-
-↓
-
-Vision
-
-↓
-
-OCR
-
-↓
-
-LLM
-
-↓
-
-Structured Data
-
-↓
-
-Word Template
-
-↓
-
-Download
-
-### Deliverables
-
-Support automatic generation of:
-
-- inspection records
-- photo reports
-- interview records
-
-### Status
-
-- [ ]
+- 检查记录
+- 影像报告
+- 询问笔录
 
 ---
 
-# Milestone 5
+# Milestone 5：智能工作流
 
-## Intelligent Workflow
+## 目标
 
-### Goal
+自动化检查工作流程。
 
-Automate inspection workflows.
+## 范围
 
-### Modules
+- Task Queue
+- Workflow Engine
+- Background Processing
+- AI Task Management
+- Notification
+- Batch Processing
 
-Task Queue
+## 交付物
 
-Workflow Engine
+支持：
 
-Background Processing
-
-AI Task Management
-
-Notification
-
-Batch Processing
-
-### Deliverables
-
-Support:
-
-- asynchronous AI tasks
-- long-running jobs
-- workflow orchestration
-
-### Status
-
-- [ ]
+- 异步 AI 任务
+- 长时间运行的任务
+- 工作流编排
 
 ---
 
-# Milestone 6
+# Milestone 6：企业管理
 
-## Enterprise Management
+## 目标
 
-### Goal
+支持企业级部署。
 
-Support enterprise deployment.
+## 范围
 
-### Modules
+- 组织（Organizations）
+- 部门（Departments）
+- 角色管理
+- 权限管理
+- 审计日志
+- 操作日志
+- Statistics
 
-Organizations
+## 交付物
 
-Departments
-
-Role Management
-
-Permission Management
-
-Audit Logs
-
-Operation Logs
-
-Statistics
-
-### Deliverables
-
-Support multiple organizations.
-
-Support fine-grained permissions.
-
-### Status
-
-- [ ]
+支持多组织；支持细粒度权限。
 
 ---
 
-# Milestone 7
+# Milestone 7：平台工程化
 
-## Platform Engineering
+## 目标
 
-### Goal
+提升可靠性与部署能力。
 
-Improve reliability and deployment.
+## 范围
 
-### Modules
+- Docker
+- CI/CD
+- 监控
+- 备份
+- 性能优化
+- 缓存
+- Task Queue
+- 部署
 
-Docker
+## 交付物
 
-CI/CD
-
-Monitoring
-
-Backup
-
-Performance Optimization
-
-Caching
-
-Task Queue
-
-Deployment
-
-### Deliverables
-
-Support production deployment.
-
-### Status
-
-- [ ]
+支持生产环境部署。
 
 ---
 
-# Milestone 8
+# Milestone 8：AI 平台
 
-## AI Platform
+## 目标
 
-### Goal
+构建可复用的 AI 平台。
 
-Build a reusable AI platform.
+## 范围
 
-### Modules
+- Prompt 管理
+- 模型管理
+- Agent
+- Multi-Agent
+- MCP
+- 评估（Evaluation）
+- 模型路由（Model Routing）
+- 插件系统
+- 工作流编辑器
 
-Prompt Management
+## 交付物
 
-Model Management
-
-Agent
-
-Multi-Agent
-
-MCP
-
-Evaluation
-
-Model Routing
-
-Plugin System
-
-Workflow Editor
-
-### Deliverables
-
-The platform supports future AI capabilities without major architectural changes.
-
-### Status
-
-- [ ]
+平台能够在不做重大架构调整的情况下支持未来的 AI 能力。
 
 ---
 
-# Future Extensions
+# 规格文档
 
-Potential future capabilities:
-
-- Mobile application
-- Voice assistant
-- Real-time inspection guidance
-- GIS integration
-- IoT device integration
-- Fire equipment recognition
-- Digital twin support
-- Large-scale document processing
-
-These features are not required for the current roadmap.
-
----
-
-# Specification Documents
-
-Detailed requirements should be maintained separately.
-
-Current structure:
+详细需求独立维护在 `specs/` 目录：
 
 ```text
 specs/
-├── README.md
+├── _common.md
 ├── authentication.md
 ├── dashboard.md
 ├── regulation-qa.md
@@ -440,52 +265,17 @@ specs/
 ├── interview-record.md
 ├── knowledge-base.md
 ├── settings.md
-├── statistics.md
 └── workflow.md
 ```
 
-Each specification should include:
+跨功能公共约定（角色权限、任务轮询、文件上传、AI 通用约束、安全日志、通用验收标准）集中维护在 `_common.md`，各功能规格引用而不复制。
 
-- Purpose
-- User workflow
-- UI requirements
-- API requirements
-- Database impact
-- AI workflow
-- Acceptance criteria
+每份功能规格只包含本功能独有内容：
 
----
-
-# AI Execution
-
-When an AI coding assistant is asked to implement a feature:
-
-1. Read AGENTS.md
-2. Read PROJECT.md
-3. Read ARCHITECTURE.md
-4. Read AI_CONTEXT.md
-5. Read API.md
-6. Read DATABASE.md
-7. Read the relevant specification
-8. Implement only the requested milestone or specification
-9. Preserve existing architecture
-10. Verify the project builds successfully
-
-Do not implement unrelated milestones.
-
----
-
-# Current Progress
-
-| Milestone | Name | Status |
-|-----------|------|--------|
-| 1 | Foundation Platform | ⬜ Not Started |
-| 2 | Fire Inspection Workflow | ⬜ Not Started |
-| 3 | Fire Regulation Knowledge Base | ⬜ Not Started |
-| 4 | AI Document Generation | ⬜ Not Started |
-| 5 | Intelligent Workflow | ⬜ Not Started |
-| 6 | Enterprise Management | ⬜ Not Started |
-| 7 | Platform Engineering | ⬜ Not Started |
-| 8 | AI Platform | ⬜ Not Started |
-
-Update this table as the project evolves.
+- 目的与范围
+- 功能要求与业务规则
+- 字段清单（如有）
+- UI 结构
+- API 端点（schema 见 API.md）
+- 数据影响
+- 验收标准

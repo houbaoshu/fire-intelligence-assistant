@@ -1,134 +1,56 @@
 # DATABASE.md
 
-# Database Design
+# 数据库设计
 
-This document describes the database structure, relationships, constraints, and data ownership of the Fire Intelligence Platform.
+本文档是 Fire Intelligence Platform 数据库表结构与枚举的唯一权威文件，描述数据库结构、表关系、约束与数据归属规则。
 
-It should remain synchronized with the actual database models and migrations.
+数据库是业务数据的事实来源（source of truth）。AI 生成的中间文件与向量嵌入不能替代结构化业务记录。
 
-The database is the source of truth for business data.
+# 数据库技术
 
-AI-generated intermediate files and vector embeddings should not replace structured business records.
+- 关系数据库：PostgreSQL
+- ORM：SQLAlchemy
+- Schema 校验：Pydantic
+- Migration 工具：Alembic
+- 文件存储：Supabase Storage、S3 兼容对象存储、本地存储（仅限开发环境）
+- 向量数据库：Chroma 或其他已配置的向量存储
 
----
+向量数据库仅保存检索数据，业务数据必须保留在 PostgreSQL 中。
 
-# Database Technology
+# 设计原则
 
-Primary relational database:
+- 使用 UUID 主键。
+- 时间戳统一存储为 UTC。
+- 表间关系使用外键。
+- 避免存储重复的业务数据。
+- 需要恢复或审计的记录使用软删除。
+- AI 任务记录与最终业务文档分开保存。
+- 大文件存入对象存储，不直接存入数据库列。
+- 数据库中保存文件元数据与存储路径。
+- 每次 schema 变更都必须包含 Alembic migration，禁止绕过 migration 手工修改表结构。
+- 已应用到共享环境的 migration 不得编辑，应创建新的修正 migration。
 
-- PostgreSQL
+# 命名规范
 
-ORM:
+表名使用复数 snake_case（如 `users`、`inspection_records`、`photo_reports`、`knowledge_documents`、`ai_tasks`）；列名使用 snake_case（如 `created_at`、`updated_at`、`storage_path`、`task_status`）；外键使用被引用实体名加 `_id` 后缀（如 `user_id`、`inspection_record_id`、`task_id`）。
 
-- SQLAlchemy
+# 通用字段
 
-Schema validation:
-
-- Pydantic
-
-Migration tool:
-
-- Alembic
-
-File storage:
-
-- Supabase Storage
-- S3-compatible object storage
-- Local storage for development only
-
-Vector database:
-
-- Chroma or another configured vector store
-
-The vector database stores retrieval data only.
-
-Business data must remain in PostgreSQL.
-
----
-
-# Design Principles
-
-- Use UUID primary keys.
-- Store timestamps in UTC.
-- Use foreign keys for relationships.
-- Avoid storing duplicated business data.
-- Use soft deletion when records may need recovery or audit.
-- Keep AI task records separate from final business documents.
-- Store large files in object storage, not directly in database columns.
-- Store file metadata and storage paths in the database.
-- Use migrations for every schema change.
-- Never modify production tables manually without a migration.
-
----
-
-# Naming Conventions
-
-Table names use plural snake_case.
-
-Examples:
+大多数业务表应包含以下字段：
 
 ```text
-users
-inspection_records
-photo_reports
-knowledge_documents
-ai_tasks
+id          UUID        主键
+created_at  TIMESTAMP   创建时间
+updated_at  TIMESTAMP   最后更新时间
+created_by  UUID        创建记录的用户
+deleted_at  TIMESTAMP   软删除时间
 ```
 
-Column names use snake_case.
+`deleted_at` 可为空；非空表示该记录已被软删除。
 
-Examples:
+# 核心实体
 
-```text
-created_at
-updated_at
-storage_path
-task_status
-```
-
-Foreign keys use the referenced entity name followed by `_id`.
-
-Examples:
-
-```text
-user_id
-inspection_record_id
-task_id
-```
-
----
-
-# Common Fields
-
-Most business tables should include:
-
-```text
-id
-created_at
-updated_at
-created_by
-deleted_at
-```
-
-Recommended definitions:
-
-```text
-id          UUID        Primary key
-created_at  TIMESTAMP   Creation time
-updated_at  TIMESTAMP   Last update time
-created_by  UUID        User who created the record
-deleted_at  TIMESTAMP   Soft deletion time
-```
-
-`deleted_at` is nullable.
-
-A non-null `deleted_at` means the record has been soft deleted.
-
----
-
-# Core Entities
-
-The target initial database design contains the following core entities:
+数据库设计包含以下核心实体：
 
 - users
 - user_profiles
@@ -144,9 +66,7 @@ The target initial database design contains the following core entities:
 - knowledge_index_jobs
 - audit_logs
 
----
-
-# Entity Relationships
+# 实体关系
 
 ```text
 users
@@ -177,30 +97,28 @@ users
   +-- audit_logs
 ```
 
----
+# 表：users
 
-# Table: users
+存储用户认证信息。
 
-Stores authentication-related user information.
+认证方案为自建 email/password：密码经强哈希算法（如 bcrypt）哈希后存储于 `users.password_hash`，绝不存储明文密码；API 认证使用 Bearer token（见 API.md）。
 
-If authentication is managed by Supabase Auth or another identity provider, this table may reference the external authentication user ID.
+## 列
 
-## Columns
-
-| Column | Type | Required | Description |
+| 列名 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
-| id | UUID | Yes | Primary key |
-| auth_provider_id | VARCHAR | No | External authentication user ID |
-| email | VARCHAR | Yes | User email |
-| username | VARCHAR | No | Display username |
-| role | VARCHAR | Yes | User role |
-| is_active | BOOLEAN | Yes | Whether the account is active |
-| last_login_at | TIMESTAMP | No | Last login time |
-| created_at | TIMESTAMP | Yes | Creation time |
-| updated_at | TIMESTAMP | Yes | Last update time |
-| deleted_at | TIMESTAMP | No | Soft deletion time |
+| id | UUID | 是 | 主键 |
+| email | VARCHAR | 是 | 用户邮箱 |
+| password_hash | VARCHAR | 是 | 密码哈希（如 bcrypt） |
+| username | VARCHAR | 否 | 显示用户名 |
+| role | VARCHAR | 是 | 用户角色 |
+| is_active | BOOLEAN | 是 | 账号是否启用 |
+| last_login_at | TIMESTAMP | 否 | 最近登录时间 |
+| created_at | TIMESTAMP | 是 | 创建时间 |
+| updated_at | TIMESTAMP | 是 | 最后更新时间 |
+| deleted_at | TIMESTAMP | 否 | 软删除时间 |
 
-## Role Values
+## Role 取值
 
 ```text
 admin
@@ -209,66 +127,62 @@ inspector
 viewer
 ```
 
-## Constraints
+## 约束
 
-- `email` must be unique.
-- `role` must use an approved value.
-- Deleted users should not be returned by normal queries.
+- `email` 必须唯一。
+- `role` 必须使用批准的取值。
+- 已删除用户不应出现在普通查询结果中。
 
----
+# 表：user_profiles
 
-# Table: user_profiles
+存储与认证数据分离的用户资料信息。
 
-Stores user profile information separate from authentication data.
+## 列
 
-## Columns
-
-| Column | Type | Required | Description |
+| 列名 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
-| id | UUID | Yes | Primary key |
-| user_id | UUID | Yes | References users.id |
-| full_name | VARCHAR | No | Full name |
-| department | VARCHAR | No | Department |
-| position | VARCHAR | No | Position |
-| phone | VARCHAR | No | Phone number |
-| avatar_path | VARCHAR | No | Avatar storage path |
-| created_at | TIMESTAMP | Yes | Creation time |
-| updated_at | TIMESTAMP | Yes | Last update time |
+| id | UUID | 是 | 主键 |
+| user_id | UUID | 是 | 引用 users.id |
+| full_name | VARCHAR | 否 | 姓名 |
+| department | VARCHAR | 否 | 部门 |
+| position | VARCHAR | 否 | 职位 |
+| phone | VARCHAR | 否 | 电话号码 |
+| avatar_path | VARCHAR | 否 | 头像存储路径 |
+| created_at | TIMESTAMP | 是 | 创建时间 |
+| updated_at | TIMESTAMP | 是 | 最后更新时间 |
 
-## Constraints
+## 约束
 
-- `user_id` must be unique.
-- One user has at most one profile.
+- `user_id` 必须唯一。
+- 一个用户至多拥有一条 profile。
 
----
+# 表：inspection_records
 
-# Table: inspection_records
+存储消防检查记录文档。
 
-Stores fire inspection record documents.
+## 列
 
-## Columns
-
-| Column | Type | Required | Description |
+| 列名 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
-| id | UUID | Yes | Primary key |
-| record_number | VARCHAR | No | Business record number |
-| title | VARCHAR | No | Record title |
-| inspection_unit | VARCHAR | No | Inspected organization |
-| inspection_address | VARCHAR | No | Inspection address |
-| inspection_date | TIMESTAMP | No | Inspection date |
-| inspector_names | JSONB | No | Inspector name list |
-| contact_person | VARCHAR | No | Contact person |
-| contact_phone | VARCHAR | No | Contact phone |
-| summary | TEXT | No | Inspection summary |
-| conclusion | TEXT | No | Inspection conclusion |
-| status | VARCHAR | Yes | Record status |
-| source_task_id | UUID | No | AI task that generated the record |
-| created_by | UUID | Yes | References users.id |
-| created_at | TIMESTAMP | Yes | Creation time |
-| updated_at | TIMESTAMP | Yes | Last update time |
-| deleted_at | TIMESTAMP | No | Soft deletion time |
+| id | UUID | 是 | 主键 |
+| record_number | VARCHAR | 否 | 业务记录编号 |
+| title | VARCHAR | 否 | 记录标题 |
+| inspection_unit | VARCHAR | 否 | 被检查单位 |
+| inspection_address | VARCHAR | 否 | 检查地址 |
+| inspection_date | TIMESTAMP | 否 | 检查日期 |
+| inspector_names | JSONB | 否 | 检查人员姓名列表 |
+| contact_person | VARCHAR | 否 | 联系人 |
+| contact_phone | VARCHAR | 否 | 联系电话 |
+| summary | TEXT | 否 | 检查总结 |
+| conclusion | TEXT | 否 | 检查结论 |
+| status | VARCHAR | 是 | 记录状态 |
+| source_task_id | UUID | 否 | 生成该记录的 AI 任务 |
+| created_by | UUID | 是 | 引用 users.id |
+| created_at | TIMESTAMP | 是 | 创建时间 |
+| updated_at | TIMESTAMP | 是 | 最后更新时间 |
+| deleted_at | TIMESTAMP | 否 | 软删除时间 |
 
-## Status Values
+## Status 取值
 
 ```text
 draft
@@ -280,35 +194,33 @@ archived
 failed
 ```
 
-## Constraints
+## 约束
 
-- `record_number` should be unique when present.
-- Finalized records should not be silently overwritten.
-- AI-generated content must remain editable before finalization.
+- `record_number` 存在时应唯一。
+- 已定稿（finalized）的记录不得被静默覆盖。
+- AI 生成的内容在定稿前必须保持可编辑。
 
----
+# 表：inspection_record_items
 
-# Table: inspection_record_items
+存储单条检查发现或违规项。
 
-Stores individual inspection findings or violations.
+## 列
 
-## Columns
-
-| Column | Type | Required | Description |
+| 列名 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
-| id | UUID | Yes | Primary key |
-| inspection_record_id | UUID | Yes | References inspection_records.id |
-| item_type | VARCHAR | Yes | Finding type |
-| location | VARCHAR | No | Finding location |
-| description | TEXT | Yes | Finding description |
-| legal_basis | TEXT | No | Relevant legal basis |
-| correction_requirement | TEXT | No | Required correction |
-| severity | VARCHAR | No | Severity level |
-| sort_order | INTEGER | Yes | Display order |
-| created_at | TIMESTAMP | Yes | Creation time |
-| updated_at | TIMESTAMP | Yes | Last update time |
+| id | UUID | 是 | 主键 |
+| inspection_record_id | UUID | 是 | 引用 inspection_records.id |
+| item_type | VARCHAR | 是 | 发现项类型 |
+| location | VARCHAR | 否 | 发现位置 |
+| description | TEXT | 是 | 发现描述 |
+| legal_basis | TEXT | 否 | 相关法律依据 |
+| correction_requirement | TEXT | 否 | 整改要求 |
+| severity | VARCHAR | 否 | 严重程度 |
+| sort_order | INTEGER | 是 | 显示顺序 |
+| created_at | TIMESTAMP | 是 | 创建时间 |
+| updated_at | TIMESTAMP | 是 | 最后更新时间 |
 
-## Item Type Values
+## Item Type 取值
 
 ```text
 compliant
@@ -318,7 +230,7 @@ observation
 recommendation
 ```
 
-## Severity Values
+## Severity 取值
 
 ```text
 low
@@ -327,108 +239,122 @@ high
 critical
 ```
 
----
+# 表：photo_reports
 
-# Table: photo_reports
+存储照片报告文档。
 
-Stores photo report documents.
+## 列
 
-## Columns
-
-| Column | Type | Required | Description |
+| 列名 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
-| id | UUID | Yes | Primary key |
-| title | VARCHAR | No | Report title |
-| inspection_unit | VARCHAR | No | Inspected organization |
-| inspection_address | VARCHAR | No | Inspection address |
-| violation_summary | TEXT | No | Summary of violations |
-| status | VARCHAR | Yes | Report status |
-| source_task_id | UUID | No | AI generation task |
-| created_by | UUID | Yes | References users.id |
-| created_at | TIMESTAMP | Yes | Creation time |
-| updated_at | TIMESTAMP | Yes | Last update time |
-| deleted_at | TIMESTAMP | No | Soft deletion time |
+| id | UUID | 是 | 主键 |
+| title | VARCHAR | 否 | 报告标题 |
+| inspection_unit | VARCHAR | 否 | 被检查单位 |
+| inspection_address | VARCHAR | 否 | 检查地址 |
+| violation_summary | TEXT | 否 | 违规情况摘要 |
+| status | VARCHAR | 是 | 报告状态 |
+| source_task_id | UUID | 否 | AI 生成任务 |
+| created_by | UUID | 是 | 引用 users.id |
+| created_at | TIMESTAMP | 是 | 创建时间 |
+| updated_at | TIMESTAMP | 是 | 最后更新时间 |
+| deleted_at | TIMESTAMP | 否 | 软删除时间 |
 
----
+## Status 取值
 
-# Table: photo_report_images
+```text
+draft
+processing
+generated
+reviewed
+finalized
+archived
+failed
+```
 
-Stores images and captions included in a photo report.
+# 表：photo_report_images
 
-## Columns
+存储照片报告中包含的图片及其说明。
 
-| Column | Type | Required | Description |
+## 列
+
+| 列名 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
-| id | UUID | Yes | Primary key |
-| photo_report_id | UUID | Yes | References photo_reports.id |
-| uploaded_file_id | UUID | Yes | References uploaded_files.id |
-| frame_timestamp | FLOAT | No | Source video timestamp in seconds |
-| caption | TEXT | No | Editable image caption |
-| detected_address | VARCHAR | No | Address recognized from image |
-| detected_violation | TEXT | No | Violation recognized from image |
-| is_selected | BOOLEAN | Yes | Whether included in final document |
-| sort_order | INTEGER | Yes | Display order |
-| created_at | TIMESTAMP | Yes | Creation time |
-| updated_at | TIMESTAMP | Yes | Last update time |
+| id | UUID | 是 | 主键 |
+| photo_report_id | UUID | 是 | 引用 photo_reports.id |
+| uploaded_file_id | UUID | 是 | 引用 uploaded_files.id |
+| frame_timestamp | FLOAT | 否 | 源视频时间戳（秒） |
+| caption | TEXT | 否 | 可编辑的图片说明 |
+| detected_address | VARCHAR | 否 | 从图片识别的地址 |
+| detected_violation | TEXT | 否 | 从图片识别的违规行为 |
+| is_selected | BOOLEAN | 是 | 是否纳入最终文档 |
+| sort_order | INTEGER | 是 | 显示顺序 |
+| created_at | TIMESTAMP | 是 | 创建时间 |
+| updated_at | TIMESTAMP | 是 | 最后更新时间 |
 
-## Constraints
+## 约束
 
-- Image captions must remain editable.
-- Multiple images may belong to one photo report.
-- Removing an image from a report should not necessarily delete the original file.
+- 图片说明必须保持可编辑。
+- 一个照片报告可包含多张图片。
+- 从报告中移除图片不应必然删除原始文件。
 
----
+# 表：interview_records
 
-# Table: interview_records
+存储询问记录（interview record）文档。
 
-Stores interview or inquiry record documents.
+## 列
 
-## Columns
-
-| Column | Type | Required | Description |
+| 列名 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
-| id | UUID | Yes | Primary key |
-| title | VARCHAR | No | Record title |
-| interviewee_name | VARCHAR | No | Interviewed person |
-| interviewer_names | JSONB | No | Interviewer list |
-| location | VARCHAR | No | Interview location |
-| started_at | TIMESTAMP | No | Start time |
-| ended_at | TIMESTAMP | No | End time |
-| transcript | TEXT | No | Speech transcript |
-| structured_content | JSONB | No | Structured interview content |
-| status | VARCHAR | Yes | Record status |
-| source_task_id | UUID | No | AI task |
-| created_by | UUID | Yes | References users.id |
-| created_at | TIMESTAMP | Yes | Creation time |
-| updated_at | TIMESTAMP | Yes | Last update time |
-| deleted_at | TIMESTAMP | No | Soft deletion time |
+| id | UUID | 是 | 主键 |
+| title | VARCHAR | 否 | 记录标题 |
+| interviewee_name | VARCHAR | 否 | 被访谈人 |
+| interviewer_names | JSONB | 否 | 访谈人列表 |
+| location | VARCHAR | 否 | 访谈地点 |
+| started_at | TIMESTAMP | 否 | 开始时间 |
+| ended_at | TIMESTAMP | 否 | 结束时间 |
+| transcript | TEXT | 否 | 语音转写文本 |
+| structured_content | JSONB | 否 | 结构化访谈内容 |
+| status | VARCHAR | 是 | 记录状态 |
+| source_task_id | UUID | 否 | AI 任务 |
+| created_by | UUID | 是 | 引用 users.id |
+| created_at | TIMESTAMP | 是 | 创建时间 |
+| updated_at | TIMESTAMP | 是 | 最后更新时间 |
+| deleted_at | TIMESTAMP | 否 | 软删除时间 |
 
----
+## Status 取值
 
-# Table: uploaded_files
+```text
+draft
+processing
+generated
+reviewed
+finalized
+archived
+failed
+```
 
-Stores metadata for uploaded files.
+# 表：uploaded_files
 
-The actual file should be stored in object storage.
+存储上传文件的元数据。文件本体应存入对象存储。
 
-## Columns
+## 列
 
-| Column | Type | Required | Description |
+| 列名 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
-| id | UUID | Yes | Primary key |
-| original_name | VARCHAR | Yes | Original filename |
-| storage_path | VARCHAR | Yes | Object storage path |
-| storage_provider | VARCHAR | Yes | Storage provider |
-| mime_type | VARCHAR | No | MIME type |
-| file_extension | VARCHAR | No | File extension |
-| size_bytes | BIGINT | Yes | File size |
-| checksum | VARCHAR | No | File checksum |
-| category | VARCHAR | Yes | File category |
-| uploaded_by | UUID | Yes | References users.id |
-| created_at | TIMESTAMP | Yes | Upload time |
-| deleted_at | TIMESTAMP | No | Soft deletion time |
+| id | UUID | 是 | 主键 |
+| original_name | VARCHAR | 是 | 原始文件名 |
+| storage_path | VARCHAR | 是 | 对象存储路径 |
+| storage_provider | VARCHAR | 是 | 存储提供商 |
+| mime_type | VARCHAR | 否 | MIME 类型 |
+| file_extension | VARCHAR | 否 | 文件扩展名 |
+| size_bytes | BIGINT | 是 | 文件大小（字节） |
+| checksum | VARCHAR | 否 | 文件校验和 |
+| category | VARCHAR | 是 | 文件类别 |
+| uploaded_by | UUID | 是 | 引用 users.id |
+| created_at | TIMESTAMP | 是 | 上传时间 |
+| deleted_at | TIMESTAMP | 否 | 软删除时间 |
 
-## Category Values
+## Category 取值
 
 ```text
 video
@@ -440,33 +366,31 @@ generated_document
 knowledge_source
 ```
 
-## Constraints
+## 约束
 
-- Do not store file binary data directly in this table.
-- Storage paths should be unique where practical.
-- Validate file type and size before processing.
+- 不得在本表直接存储文件二进制数据。
+- 存储路径应尽量保持唯一。
+- 处理前必须校验文件类型与大小。
 
----
+# 表：generated_documents
 
-# Table: generated_documents
+存储生成的 Word、PDF 或其他输出文档。
 
-Stores generated Word, PDF, or other output documents.
+## 列
 
-## Columns
-
-| Column | Type | Required | Description |
+| 列名 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
-| id | UUID | Yes | Primary key |
-| document_type | VARCHAR | Yes | Document type |
-| source_entity_type | VARCHAR | Yes | Source business entity |
-| source_entity_id | UUID | Yes | Source business entity ID |
-| uploaded_file_id | UUID | Yes | References uploaded_files.id |
-| version | INTEGER | Yes | Document version |
-| generated_by_task_id | UUID | No | References ai_tasks.id |
-| created_by | UUID | Yes | References users.id |
-| created_at | TIMESTAMP | Yes | Creation time |
+| id | UUID | 是 | 主键 |
+| document_type | VARCHAR | 是 | 文档类型 |
+| source_entity_type | VARCHAR | 是 | 来源业务实体类型 |
+| source_entity_id | UUID | 是 | 来源业务实体 ID |
+| uploaded_file_id | UUID | 是 | 引用 uploaded_files.id |
+| version | INTEGER | 是 | 文档版本 |
+| generated_by_task_id | UUID | 否 | 引用 ai_tasks.id |
+| created_by | UUID | 是 | 引用 users.id |
+| created_at | TIMESTAMP | 是 | 创建时间 |
 
-## Document Type Values
+## Document Type 取值
 
 ```text
 inspection_record_docx
@@ -477,38 +401,36 @@ photo_report_pdf
 interview_record_pdf
 ```
 
-## Constraints
+## 约束
 
-- Do not overwrite previous finalized document versions.
-- Increment `version` when regenerating a finalized document.
-- Preserve download history where required.
+- 不得覆盖已定稿的历史文档版本。
+- 重新生成已定稿文档时递增 `version`。
+- 按要求保留下载历史。
 
----
+# 表：ai_tasks
 
-# Table: ai_tasks
+存储异步 AI 处理任务。
 
-Stores asynchronous AI processing tasks.
+## 列
 
-## Columns
-
-| Column | Type | Required | Description |
+| 列名 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
-| id | UUID | Yes | Primary key |
-| task_type | VARCHAR | Yes | Task category |
-| status | VARCHAR | Yes | Task status |
-| progress | INTEGER | Yes | Progress from 0 to 100 |
-| current_stage | VARCHAR | No | Current processing stage |
-| input_data | JSONB | No | Non-sensitive task input metadata |
-| result_data | JSONB | No | Structured AI result |
-| error_code | VARCHAR | No | Machine-readable error code |
-| error_message | TEXT | No | Readable error message |
-| started_at | TIMESTAMP | No | Task start time |
-| completed_at | TIMESTAMP | No | Task completion time |
-| created_by | UUID | Yes | References users.id |
-| created_at | TIMESTAMP | Yes | Creation time |
-| updated_at | TIMESTAMP | Yes | Last update time |
+| id | UUID | 是 | 主键 |
+| task_type | VARCHAR | 是 | 任务类别 |
+| status | VARCHAR | 是 | 任务状态 |
+| progress | INTEGER | 是 | 进度（0 到 100） |
+| current_stage | VARCHAR | 否 | 当前处理阶段 |
+| input_data | JSONB | 否 | 非敏感任务输入元数据 |
+| result_data | JSONB | 否 | 结构化 AI 结果 |
+| error_code | VARCHAR | 否 | 机器可读错误码 |
+| error_message | TEXT | 否 | 可读错误信息 |
+| started_at | TIMESTAMP | 否 | 任务开始时间 |
+| completed_at | TIMESTAMP | 否 | 任务完成时间 |
+| created_by | UUID | 是 | 引用 users.id |
+| created_at | TIMESTAMP | 是 | 创建时间 |
+| updated_at | TIMESTAMP | 是 | 最后更新时间 |
 
-## Status Values
+## Status 取值
 
 ```text
 pending
@@ -519,7 +441,7 @@ failed
 cancelled
 ```
 
-## Task Type Values
+## Task Type 取值
 
 ```text
 inspection_record_generation
@@ -532,41 +454,39 @@ knowledge_indexing
 knowledge_reindexing
 ```
 
-## Constraints
+## 约束
 
-- `progress` must be between 0 and 100.
-- Completed tasks should have `completed_at`.
-- Failed tasks should have `error_message`.
-- Sensitive file content should not be copied into `input_data`.
+- `progress` 必须在 0 到 100 之间。
+- 已完成任务应具有 `completed_at`。
+- 失败任务应具有 `error_message`。
+- 敏感文件内容不得复制到 `input_data`。
 
----
+# 表：knowledge_documents
 
-# Table: knowledge_documents
+存储知识库使用的来源文档。
 
-Stores source documents used by the knowledge base.
+## 列
 
-## Columns
-
-| Column | Type | Required | Description |
+| 列名 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
-| id | UUID | Yes | Primary key |
-| title | VARCHAR | Yes | Document title |
-| document_type | VARCHAR | No | Source document type |
-| uploaded_file_id | UUID | Yes | References uploaded_files.id |
-| status | VARCHAR | Yes | Indexing status |
-| version | VARCHAR | No | Document version |
-| issuing_authority | VARCHAR | No | Issuing authority |
-| effective_date | DATE | No | Effective date |
-| expiration_date | DATE | No | Expiration date |
-| chunk_count | INTEGER | No | Indexed chunk count |
-| checksum | VARCHAR | No | Content checksum |
-| metadata | JSONB | No | Additional document metadata |
-| created_by | UUID | Yes | References users.id |
-| created_at | TIMESTAMP | Yes | Creation time |
-| updated_at | TIMESTAMP | Yes | Last update time |
-| deleted_at | TIMESTAMP | No | Soft deletion time |
+| id | UUID | 是 | 主键 |
+| title | VARCHAR | 是 | 文档标题 |
+| document_type | VARCHAR | 否 | 来源文档类型 |
+| uploaded_file_id | UUID | 是 | 引用 uploaded_files.id |
+| status | VARCHAR | 是 | 索引状态 |
+| version | VARCHAR | 否 | 文档版本 |
+| issuing_authority | VARCHAR | 否 | 发布机构 |
+| effective_date | DATE | 否 | 生效日期 |
+| expiration_date | DATE | 否 | 失效日期 |
+| chunk_count | INTEGER | 否 | 已索引分块数量 |
+| checksum | VARCHAR | 否 | 内容校验和 |
+| doc_metadata | JSONB | 否 | 附加文档元数据 |
+| created_by | UUID | 是 | 引用 users.id |
+| created_at | TIMESTAMP | 是 | 创建时间 |
+| updated_at | TIMESTAMP | 是 | 最后更新时间 |
+| deleted_at | TIMESTAMP | 否 | 软删除时间 |
 
-## Status Values
+## Status 取值
 
 ```text
 uploaded
@@ -577,33 +497,32 @@ failed
 outdated
 ```
 
-## Constraints
+## 约束
 
-- Duplicate documents should be detected using checksum where possible.
-- Re-indexing must not silently create duplicate active versions.
-- Deleted knowledge documents should also be removed from the vector index.
+- 应尽量使用 `checksum` 检测重复文档。
+- 重建索引不得静默产生重复的生效版本。
+- 删除知识文档时必须同时从向量索引中移除。
+- 列名使用 `doc_metadata` 而非 `metadata`，以避免与 SQLAlchemy Declarative 的保留属性名 `metadata` 冲突。
 
----
+# 表：knowledge_index_jobs
 
-# Table: knowledge_index_jobs
+存储知识库索引任务。
 
-Stores knowledge base indexing jobs.
+## 列
 
-## Columns
-
-| Column | Type | Required | Description |
+| 列名 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
-| id | UUID | Yes | Primary key |
-| knowledge_document_id | UUID | No | References knowledge_documents.id |
-| ai_task_id | UUID | No | References ai_tasks.id |
-| action | VARCHAR | Yes | Index operation |
-| status | VARCHAR | Yes | Job status |
-| indexed_chunks | INTEGER | No | Number of indexed chunks |
-| error_message | TEXT | No | Error message |
-| created_at | TIMESTAMP | Yes | Creation time |
-| completed_at | TIMESTAMP | No | Completion time |
+| id | UUID | 是 | 主键 |
+| knowledge_document_id | UUID | 否 | 引用 knowledge_documents.id |
+| ai_task_id | UUID | 否 | 引用 ai_tasks.id |
+| action | VARCHAR | 是 | 索引操作 |
+| status | VARCHAR | 是 | 任务状态 |
+| indexed_chunks | INTEGER | 否 | 已索引分块数 |
+| error_message | TEXT | 否 | 错误信息 |
+| created_at | TIMESTAMP | 是 | 创建时间 |
+| completed_at | TIMESTAMP | 否 | 完成时间 |
 
-## Action Values
+## Action 取值
 
 ```text
 index
@@ -612,27 +531,25 @@ delete_index
 full_rebuild
 ```
 
----
+# 表：audit_logs
 
-# Table: audit_logs
+存储重要的用户与系统操作。
 
-Stores important user and system actions.
+## 列
 
-## Columns
-
-| Column | Type | Required | Description |
+| 列名 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
-| id | UUID | Yes | Primary key |
-| user_id | UUID | No | References users.id |
-| action | VARCHAR | Yes | Action name |
-| entity_type | VARCHAR | No | Target entity type |
-| entity_id | UUID | No | Target entity ID |
-| request_id | VARCHAR | No | Request trace ID |
-| ip_address | VARCHAR | No | Request IP |
-| details | JSONB | No | Safe action metadata |
-| created_at | TIMESTAMP | Yes | Creation time |
+| id | UUID | 是 | 主键 |
+| user_id | UUID | 否 | 引用 users.id |
+| action | VARCHAR | 是 | 操作名称 |
+| entity_type | VARCHAR | 否 | 目标实体类型 |
+| entity_id | UUID | 否 | 目标实体 ID |
+| request_id | VARCHAR | 否 | 请求追踪 ID |
+| ip_address | VARCHAR | 否 | 请求 IP |
+| details | JSONB | 否 | 安全的操作元数据 |
+| created_at | TIMESTAMP | 是 | 创建时间 |
 
-## Example Actions
+## 操作示例
 
 ```text
 user.login
@@ -644,17 +561,15 @@ knowledge_document.delete
 document.download
 ```
 
-## Constraints
+## 约束
 
-- Audit logs should normally be append-only.
-- Do not store passwords, tokens, or full sensitive document content.
-- Access to audit logs should be restricted.
+- 审计日志通常只允许追加。
+- 不得存储密码、token 或完整的敏感文档内容。
+- 审计日志的访问应受到限制。
 
----
+# 可选表
 
-# Optional Tables
-
-The following tables may be added when needed:
+以下表可在需要时增加：
 
 - roles
 - permissions
@@ -668,13 +583,11 @@ The following tables may be added when needed:
 - evaluation_results
 - notifications
 
-Do not create these tables before the corresponding feature is required.
+在对应功能被需要之前，不要创建这些表。
 
----
+# 索引
 
-# Indexes
-
-Recommended indexes:
+推荐索引：
 
 ```text
 users.email
@@ -693,194 +606,51 @@ audit_logs.user_id
 audit_logs.created_at
 ```
 
-Use composite indexes only when query patterns justify them.
+仅当查询模式确实需要时才使用复合索引，例如 `ai_tasks(created_by, status, created_at)`、`inspection_records(created_by, status, created_at)`。
 
-Example:
+# 数据归属
 
-```text
-ai_tasks(created_by, status, created_at)
-inspection_records(created_by, status, created_at)
-```
+用户通常只能访问自己创建的记录或所属组织的记录；管理员可按照权限规则访问全部记录。鉴权必须由后端强制执行，前端可见性不是安全边界。
 
----
+# 文件删除规则
 
-# Data Ownership
-
-Users may normally access records they created or records belonging to their organization.
-
-Administrators may access all records according to permission rules.
-
-Authorization must be enforced by the backend.
-
-Frontend visibility is not a security boundary.
-
----
-
-# File Deletion Rules
-
-Deleting a business record should not immediately remove shared source files.
-
-Recommended flow:
+删除业务记录不应立即移除共享的来源文件。推荐流程：
 
 ```text
-Business record soft deleted
+业务记录被软删除
         ↓
-Check file references
+检查文件引用
         ↓
-Mark unused files for cleanup
+标记无引用的文件待清理
         ↓
-Delete storage object asynchronously
+异步删除存储对象
 ```
 
-Do not delete a storage file while it is still referenced by another record.
+仍被其他记录引用的存储文件不得删除。
 
----
+# AI 数据规则
 
-# AI Data Rules
+AI 输出应尽量以结构化数据保存（如 `result_data`、`structured_content`、`detected_violation`、`legal_basis`）。
 
-AI outputs should be stored as structured data whenever practical.
+不得仅依赖生成的 Word 文件作为业务记录：生成的文件是输出，结构化数据库记录才是事实来源。
 
-Examples:
+# 事务规则
 
-```text
-result_data
-structured_content
-detected_violation
-legal_basis
-```
+涉及多个相关写入的操作必须使用数据库事务，例如：
 
-Do not rely only on generated Word files as the business record.
+- 创建检查记录及其检查项。
+- 创建照片报告及其报告图片。
+- 定稿记录并创建生成文档。
+- 删除知识文档并安排向量索引清理。
 
-Generated files are outputs.
+必要步骤失败时回滚整个操作。
 
-Structured database records are the source of truth.
+# 安全规则
 
----
-
-# Transaction Rules
-
-Use database transactions for operations involving multiple related writes.
-
-Examples:
-
-- Create inspection record and its items.
-- Create photo report and report images.
-- Finalize a record and create a generated document.
-- Delete a knowledge document and schedule vector index cleanup.
-
-Rollback the complete operation when a required step fails.
-
----
-
-# Migration Rules
-
-Every schema change must include an Alembic migration.
-
-Migration process:
-
-```text
-Update SQLAlchemy models
-        ↓
-Create Alembic migration
-        ↓
-Review generated migration
-        ↓
-Test upgrade
-        ↓
-Test downgrade where practical
-        ↓
-Apply migration
-```
-
-Never edit old migrations that have already been applied to shared environments.
-
-Create a new corrective migration instead.
-
----
-
-# Backup and Recovery
-
-Production databases should have:
-
-- Automated backups
-- Point-in-time recovery where supported
-- Object storage versioning where supported
-- Tested restoration procedures
-
-Vector indexes may be rebuilt from source documents.
-
-Business records must be backed up.
-
----
-
-# Security Rules
-
-- Never store plaintext passwords.
-- Never store API keys in database business tables.
-- Encrypt sensitive data when required.
-- Restrict database credentials by environment.
-- Use least-privilege database accounts.
-- Validate all client input.
-- Enforce authorization in backend services.
-- Avoid exposing internal database IDs when unnecessary.
-
----
-
-# Data Retention
-
-Retention rules should be defined before production deployment.
-
-Suggested categories:
-
-```text
-Business records
-Generated documents
-Uploaded source files
-AI task logs
-Audit logs
-Temporary processing files
-Knowledge base documents
-```
-
-Temporary processing files should be cleaned automatically.
-
-Finalized legal or inspection documents may require long-term retention.
-
----
-
-# Current Implementation Status
-
-Update this section as the project evolves.
-
-## Implemented Tables
-
-- [ ] users
-- [ ] user_profiles
-- [ ] inspection_records
-- [ ] inspection_record_items
-- [ ] photo_reports
-- [ ] photo_report_images
-- [ ] interview_records
-- [ ] uploaded_files
-- [ ] generated_documents
-- [ ] ai_tasks
-- [ ] knowledge_documents
-- [ ] knowledge_index_jobs
-- [ ] audit_logs
-
-## Current Database
-
-```text
-Database: Not configured
-ORM: Not installed
-Migration tool: Not initialized
-Storage provider: Not configured
-Vector database: Not configured
-```
-
-## Notes
-
-Record unresolved database decisions here.
-
-- The repository currently contains the target schema design only.
-- No SQLAlchemy models or Alembic migrations have been created.
+- 绝不存储明文密码（密码哈希存于 `users.password_hash`）。
+- 不在业务表中存储 API key。
+- 敏感数据按要求加密。
+- 数据库凭据按环境隔离。
+- 使用最小权限数据库账号。
+- 在后端服务中强制鉴权。
+- 避免在非必要场景暴露内部数据库 ID。

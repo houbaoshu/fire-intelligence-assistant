@@ -1,226 +1,80 @@
-# Dashboard
+# Dashboard（工作台与统计）
 
-## 1. Purpose
+## 目的与范围
 
-The dashboard provides a trustworthy overview of platform health, recent work, and common actions. It must help inspectors resume work quickly without presenting invented operational data.
+工作台提供后端健康状态、真实统计数据、最近任务与核心模块快捷入口的可信概览，帮助检查人员快速恢复工作。本规格合并原 Statistics 功能：统计卡片与图表数据同源于 `GET /api/statistics`，不单独设页。
 
-## 2. Status and Scope
+范围（v1）：后端连接状态展示与重试、按权限聚合的统计卡片、最近任务列表、核心模块快捷入口、知识库状态摘要。
 
-**Status:** Planned. No application code exists in the current repository, so implementation is not verified.
+范围外：可配置 BI 看板、自定义报表、任意数据库查询、预测性风险评分、跨组织横向对比、统计导出、实时推送更新。
 
-Current scope:
+## 角色与权限
 
-- backend connection status;
-- summary values returned by the backend;
-- recent AI or document tasks when a supported API is available;
-- knowledge-base status when a supported API is available;
-- shortcuts to core modules;
-- empty and failure states.
+通用规则见 specs/_common.md。本功能所有已认证用户均可查看；统计与任务数据由后端按当前用户权限范围过滤，前端过滤不得扩大范围。
 
-Out of scope:
+## 功能要求
 
-- configurable BI dashboards;
-- predictive risk scoring;
-- cross-organization benchmarking;
-- exporting dashboard analytics;
-- live push updates.
+### 后端健康状态
 
-## 3. Users and Permissions
+- 基于 `GET /health` 的真实请求结果，展示 checking / connected / disconnected / error 状态，连接成功状态禁止硬编码。
+- 检查失败时用户可手动重试。
 
-- **Inspector**: sees permitted personal or organizational activity.
-- **Supervisor**: sees broader summaries when authorized.
-- **Administrator**: sees system and organization summaries when authorized.
-- **Viewer**: sees read-only information permitted by the backend.
+### 统计卡片
 
-The backend must filter all statistics and task data by the current user's permissions.
+- 所有数值来自 `GET /api/statistics`，标签含义与时间范围必须以后端返回为准，禁止硬编码指标。
+- 统计指标族：检查记录、拍照报告、询问记录、生成文书、AI 任务状态、知识库文档与索引状态；UI 不得假设全部指标族始终存在。
+- 每个时间相关数值必须展示或继承明确的统计周期；返回 `scope` 时必须标明数据范围（personal / team / organization / system），提供 `generated_at` 时展示最近更新时间。
+- 除非后端返回对比数据，卡片不得暗示趋势。
 
-## 4. Goals
+### 趋势与分布图
 
-Users must be able to:
+- 仅当 API 返回有效的时间序列或分类分布时才可使用图表；标签、单位、区间边界必须来自契约。
+- 缺失区间不得静默补零，除非后端明确将其定义为 0。
+- 简单数字或列表能表达清楚时，优先用表格或列表而非装饰性图表；图表必须提供可访问的表格替代形式。
 
-- determine whether the backend is reachable;
-- see useful, real summary data;
-- resume recent work;
-- navigate to frequently used functions;
-- distinguish an empty dataset from a loading or error state.
+### 最近任务
 
-## 5. User Workflow
+- 数据来自 `GET /api/tasks` 列表端点；每项展示 task_type、status、updated_at 与安全导航动作。
+- 失败任务展示可恢复状态与可读 `error_message`，不得暴露内部堆栈。
+- 未知任务状态展示中性兜底文案，不得导致渲染崩溃。
 
-```text
-Open Dashboard
-  ↓
-Load Health and Authorized Summaries
-  ├─ Success → Show Metrics, Recent Work, Shortcuts
-  ├─ Empty   → Show Helpful Empty States
-  └─ Failure → Show Partial Results and Retry
-```
+### 快捷入口
 
-## 6. Functional Requirements
+提供以下核心模块入口：法规问答、检查记录、拍照报告、询问记录、知识库、统计（本页统计区锚点）、设置。不可用或未授权的入口不得显示为可用状态；导航目标必须是已注册路由。
 
-### Backend Status
+## 业务规则（本功能独有）
 
-- The dashboard must request `GET /health`.
-- It must display checking, connected, disconnected, and error states.
-- The connected state must never be hardcoded.
-- Users must be able to retry a failed check.
+- 不得展示假数据：通用约定见 specs/_common.md；后端故障不得表现为「空业务数据集」，缺失值显示为「不可用」，除非后端确认值为 0。
+- **「零」「null / 缺失」「不可用」是三种不同状态**：确认无数据为 0；键被省略为缺失；请求失败为不可用，三者在 UI 上必须可区分。
+- 计数只覆盖当前用户可见记录，并遵循后端的软删除规则（定义权在 DATABASE.md）。
+- 任务失败计数不得呈现为业务违规计数；生成文书计数不得当作唯一业务记录计数，除非契约如此定义。
+- 一个面板请求失败不得隐藏其他面板的有效数据，按区块级错误展示并提供重试。
+- AI 生成的评估或摘要（如未来引入）必须与事实统计明确区分标注，且需独立规格定义。
+- 异常数值（负数计数、越界百分比、无法解析的日期）必须按「不可用」处理，禁止直接渲染。
 
-### Summary Cards
+## UI 结构
 
-- Values must come from `GET /api/statistics`.
-- Labels must match the meaning and time range returned by the backend.
-- Missing values must display as unavailable, not as zero unless zero is confirmed.
-- Cards must not imply trends unless comparison data exists.
+页面按 `页头与后端状态 → 统计卡片 → 最近任务 + 快捷入口 → 知识库状态` 的顺序组织；初始加载用骨架屏，各区块独立错误与重试，空状态附带相关的下一步动作，状态文案不得仅依赖颜色表达；桌面与平板响应式布局。
 
-### Recent Work
+## API 端点
 
-- Recent tasks or documents may be shown only after a list endpoint is approved.
-- Each item should show type, status, updated time, and a safe navigation action.
-- Failed work should show a recoverable state without exposing internal stack traces.
+- `GET /health` — 健康检查（公开端点）。
+- `GET /api/statistics` — 权限范围内的聚合统计。
+- `GET /api/tasks` — 最近任务列表（`limit` / `status` 查询参数）。
 
-### Shortcuts
+请求/响应 schema 均见 API.md（§健康检查、§7 Statistics、§8 Tasks），本规格不复制。任务状态与 `task_type` 枚举定义权在 DATABASE.md `ai_tasks` 表。
 
-Provide shortcuts to permitted core modules:
+## 数据影响
 
-- fire regulation QA;
-- inspection record;
-- photo report;
-- interview record;
-- knowledge base;
-- statistics;
-- settings.
+工作台只聚合既有授权数据，不新建数据源。统计来源表：`inspection_records`、`photo_reports`、`interview_records`、`generated_documents`、`ai_tasks`、`knowledge_documents`、`knowledge_index_jobs`（表结构见 DATABASE.md）。在查询性能或报表需求证明有必要之前，禁止创建 dashboard 快照表或统计聚合表；确需物化视图或聚合表时必须先在 DATABASE.md 定义。
 
-Unavailable or unauthorized shortcuts must not appear active.
+## 验收标准
 
-## 7. Business Rules
-
-- Never display fabricated statistics, sample tasks, or placeholder success states as real data.
-- Counts and statuses must represent only records visible to the current user.
-- A backend outage must not be represented as an empty business dataset.
-- The dashboard may render available sections when one request fails; one failed panel should not hide valid data from other panels.
-- Dates and time ranges must be explicit enough to avoid misleading users.
-
-## 8. UI Requirements
-
-Recommended layout:
-
-```text
-Page Header and Backend Status
-  ↓
-Summary Cards
-  ↓
-Recent Work              Quick Actions
-  ↓
-Knowledge Status / Operational Notices
-```
-
-The UI must provide:
-
-- responsive cards for desktop and tablet;
-- accessible headings and link names;
-- skeletons during initial loading;
-- section-level errors with retry;
-- empty states with a relevant next action;
-- status labels that do not rely on color alone;
-- consistent Chinese user-facing copy.
-
-Avoid decorative charts when a simple number or list communicates the information more clearly.
-
-## 9. API Requirements
-
-Approved contracts:
-
-```text
-GET /health
-GET /api/statistics
-```
-
-The exact statistics response is not defined in `API.md`. Before implementation, the backend schema and `API.md` must define:
-
-- metric identifiers and labels;
-- values and units;
-- time range;
-- optional comparison values;
-- last-updated time.
-
-Proposed future contracts:
-
-```text
-GET /api/tasks?limit={n}&status={status}
-GET /api/knowledge/status
-```
-
-These are not approved until added to `API.md`.
-
-## 10. Data Impact
-
-The dashboard should aggregate existing authorized records rather than create a separate source of truth.
-
-Potential sources:
-
-- `inspection_records`;
-- `photo_reports`;
-- `interview_records`;
-- `ai_tasks`;
-- `knowledge_documents`;
-- `generated_documents`.
-
-Do not create a dashboard snapshot table until query performance or reporting requirements justify it.
-
-## 11. AI Workflow
-
-No AI inference is required for the initial dashboard.
-
-Future AI summaries or recommendations must be explicitly specified, evidence-based, permission-aware, and visually distinguished from factual metrics.
-
-## 12. Validation
-
-- Unexpected null values must not break rendering.
-- Unknown task statuses must display a neutral fallback.
-- Dates must be parsed safely and formatted consistently.
-- Negative counts or invalid percentages must be rejected or marked unavailable.
-- Navigation targets must correspond to registered routes.
-
-## 13. Error Handling
-
-- Health failure: show disconnected status and retry.
-- Statistics failure: show a panel-level error, not fake zeros.
-- Partial response: render valid sections and mark missing sections unavailable.
-- Unauthorized response: hide restricted data and do not repeatedly retry.
-- Malformed response: show a readable data error and log only safe diagnostic metadata.
-
-## 14. Security and Privacy
-
-- The backend must scope dashboard data by user, role, and organization.
-- The frontend must not request or display sensitive document content on the dashboard.
-- Task previews must avoid sensitive source text and storage paths.
-- URLs and identifiers must not bypass backend authorization.
-
-## 15. Non-Functional Requirements
-
-- Independent dashboard requests should not block one another unnecessarily.
-- Duplicate requests should be avoided through shared query caching.
-- Data should expose its refresh behavior and last-updated time when relevant.
-- The page must remain usable when one service is unavailable.
-- Keyboard focus order must follow the visual layout.
-
-## 16. Future Improvements
-
-- user-configurable panels;
-- server-sent task updates;
-- saved filters;
-- exportable reports;
-- evidence-based operational recommendations;
-- authorized organization comparisons.
-
-## 17. Acceptance Criteria
-
-- [ ] Backend status is based on `GET /health` and supports retry.
-- [ ] Summary values come from `GET /api/statistics`.
-- [ ] No invented or placeholder value is displayed as real data.
-- [ ] Loading, empty, partial-failure, and complete-failure states are distinct.
-- [ ] Shortcuts respect authorization and registered routes.
-- [ ] Missing values are shown as unavailable rather than assumed to be zero.
-- [ ] Dashboard requests use the centralized API client and shared query layer.
-- [ ] The layout is usable on desktop and tablet.
-- [ ] Statuses remain understandable without color.
-- [ ] Available lint, type, test, and build checks pass.
+- [ ] 后端状态基于真实 `GET /health` 请求且可重试，连接状态无硬编码。
+- [ ] 统计数值全部来自 `GET /api/statistics`，统计周期、scope 与单位清晰可见。
+- [ ] 「零」「缺失」「不可用」「错误」四种状态在 UI 上可区分。
+- [ ] 最近任务来自 `GET /api/tasks`，失败任务展示可恢复状态。
+- [ ] 单个面板失败不影响其他面板数据展示。
+- [ ] 快捷入口遵守授权且指向已注册路由。
+- [ ] 图表仅用于有效序列并提供可访问替代。
+- [ ] 通用验收标准见 specs/_common.md。

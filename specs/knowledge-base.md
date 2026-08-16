@@ -1,326 +1,99 @@
-# Knowledge Base Management
+# Knowledge Base（知识库）
 
-## 1. Purpose
+## 目的与范围
 
-The Knowledge Base feature lets authorized users manage source documents used by RAG. It must make parsing and indexing status visible, prevent silent duplication, and keep relational metadata, object storage, and the vector index synchronized.
-
-## 2. Status and Scope
-
-**Status:** Planned. No application code exists in the current repository, so implementation is not verified.
-
-Current scope:
-
-- list authorized knowledge documents;
-- upload one supported document at a time;
-- track parsing and indexing status;
-- show document metadata and failures;
-- delete a document with confirmation;
-- trigger a full index rebuild;
-- refresh the list after mutations.
+知识库管理 RAG 使用的来源文档：使解析与索引状态可见、防止静默重复，并保持关系元数据、对象存储与向量索引三者同步。
 
-Out of scope for the first version:
+范围（v1）：列出有权限的知识文档、逐个上传受支持文档、跟踪解析与索引状态、展示文档元数据与失败原因、确认后删除文档、触发全量索引重建、查看知识库聚合计数、变更后刷新列表。
 
-- in-browser document editing;
-- folder hierarchies;
-- collaborative annotation;
-- automatic web crawling;
-- spreadsheet indexing;
-- document-level sharing workflows;
-- manual chunk editing.
+范围外：浏览器内文档编辑、目录层级、协作批注、自动网页抓取、表格（XLSX）索引、文档级共享流程、手工编辑 chunk。
 
-## 3. Users and Permissions
+## 角色与权限
 
-- **Administrator**: uploads, deletes, and rebuilds knowledge content when authorized.
-- **Supervisor**: may view status and manage content when explicitly permitted.
-- **Inspector**: normally consumes indexed content through QA and may have read-only status access.
-- **Viewer**: no management permission by default.
-
-Upload, deletion, rebuild, and source-document access must be enforced by backend permissions.
-
-## 4. Goals
+通用规则见 specs/_common.md。本功能最低角色：上传、删除、重建为 `admin`；`supervisor` 经明确授权可管理内容；`inspector` 只读查看状态；`viewer` 无管理权限。源文档访问与所有管理操作以后端权限校验为准。
 
-Authorized users must be able to:
+## 功能要求
 
-- understand which documents are available to RAG;
-- add supported source material;
-- see whether parsing and indexing succeeded;
-- diagnose a failed document without reading backend logs;
-- remove obsolete documents from both business metadata and retrieval;
-- rebuild the index without creating duplicate active chunks.
-
-## 5. User Workflow
-
-```text
-Open Knowledge Base
-  ↓
-Load Document List
-  ├─ Upload Document
-  │      ↓
-  │   Store Source
-  │      ↓
-  │   Parse → Chunk → Embed → Index
-  │      ↓
-  │   Show Indexed / Failed Status
-  │
-  ├─ Delete Document → Confirm → Remove Index Entries
-  │
-  └─ Rebuild Index → Confirm → Track Task → Refresh
-```
-
-## 6. Functional Requirements
-
-### Document List
-
-The list must show available metadata:
-
-- title;
-- document type;
-- version;
-- issuing authority;
-- effective and expiration dates;
-- indexing status;
-- chunk count;
-- last updated time;
-- safe failure summary when applicable.
-
-The list must support a useful empty state, refresh, and status filtering when the backend supports it.
-
-### Upload
-
-- Users must select a supported document.
-- Filename and size must be displayed before upload.
-- Upload progress and indexing progress must be separate.
-- Metadata required by backend schemas must be collected or extracted.
-- The UI must not show `indexed` until the backend confirms index completion.
-
-### Index Status
-
-Supported document states from `DATABASE.md`:
-
-```text
-uploaded
-parsing
-indexing
-indexed
-failed
-outdated
-```
-
-- Status must be readable without relying on color.
-- Failed documents must show a safe actionable message.
-- Long-running indexing should use the shared task pattern once its response contract is defined.
-
-### Delete
-
-- Deletion requires explicit confirmation with the document title.
-- The backend must coordinate relational metadata, source-file lifecycle, and vector-index removal.
-- The UI must not remove the row permanently until the backend confirms the operation.
-- A partial deletion failure must remain visible for recovery.
-
-### Rebuild
-
-- Full rebuild requires confirmation because it may be expensive and temporarily affect retrieval.
-- Only one equivalent rebuild should run at a time unless the backend supports concurrency safely.
-- Progress and failure details must be visible.
-- Rebuild must not create duplicate active chunks.
-
-## 7. Business Rules
-
-- Original source documents remain the authoritative input for rebuilding retrieval data.
-- The vector store contains derived chunks and embeddings, not primary business records.
-- Duplicate content should be detected by checksum where practical.
-- A new version must not silently replace a current version without explicit version rules.
-- Effective, expired, superseded, and outdated documents must remain distinguishable.
-- Deleted or unauthorized documents must no longer be retrievable.
-- Indexing success requires all required metadata and vector entries to be committed consistently.
-- Rebuild must be recoverable; a failed rebuild must not silently destroy the last usable index.
-- RAG answers must retain traceable references to document metadata.
-
-## 8. UI Requirements
-
-Recommended layout:
-
-```text
-Page Header and Knowledge Status
-  ↓
-Upload and Rebuild Actions
-  ↓
-Filters
-  ↓
-Document Table / Cards
-  ↓
-Status and Error Details
-```
-
-The UI must provide:
-
-- accessible file picker or drop zone;
-- selected-file metadata;
-- upload and indexing progress;
-- responsive document list;
-- status filters when useful;
-- confirmation dialogs for delete and rebuild;
-- disabled duplicate actions while requests are active;
-- empty, loading, partial-failure, and full-error states;
-- Chinese user-facing labels and actionable errors.
-
-Document status and destructive actions must remain usable by keyboard.
-
-## 9. API Requirements
-
-Approved contracts from `API.md`:
-
-```text
-GET    /api/knowledge/documents
-POST   /api/knowledge/documents
-DELETE /api/knowledge/documents/{id}
-POST   /api/knowledge/rebuild
-GET    /api/tasks/{task_id}
-```
-
-Upload uses `FormData` with:
-
-```text
-file
-```
-
-Before implementation, `API.md` and backend schemas must define:
-
-- list response and pagination behavior;
-- upload metadata fields;
-- whether upload returns a document, a `task_id`, or both;
-- deletion completion and partial-failure semantics;
-- rebuild response and task tracking;
-- safe error-code values;
-- status filtering and ordering.
-
-No detail, retry, or per-document reindex endpoint is currently approved. Add such contracts to `API.md` before implementation.
-
-## 10. Data Impact
-
-Relevant target tables:
-
-- `knowledge_documents` for source metadata and current index status;
-- `knowledge_index_jobs` for index operations and outcomes;
-- `uploaded_files` for original source-file metadata;
-- `ai_tasks` for asynchronous indexing and rebuild tasks;
-- `audit_logs` for upload, deletion, and rebuild actions.
-
-The configured vector store holds chunks, embeddings, and source references. Object storage holds the original document.
-
-## 11. AI and RAG Workflow
-
-Indexing pipeline:
-
-```text
-Source Document
-  ↓
-Validate and Store
-  ↓
-Parse
-  ↓
-Normalize
-  ↓
-Semantic Chunking
-  ↓
-Metadata Enrichment
-  ↓
-Embedding
-  ↓
-Vector Index
-  ↓
-Mark Document Indexed
-```
-
-Required metadata should preserve available values such as:
-
-- document ID and title;
-- document type and version;
-- page number;
-- chapter, section, or article;
-- effective date and issuing authority;
-- source reference.
-
-AI/RAG constraints:
-
-- Parsing, chunking, embedding, storage, retrieval, and reranking remain separate responsibilities.
-- Model and provider selection comes from configuration.
-- Re-indexing must remove or replace stale chunks deterministically.
-- A document must not be marked indexed when required stages fail.
-- Full document contents, embeddings, prompts, and provider details must not be sent to the frontend.
-
-## 12. Validation
-
-Current upload types approved by `API.md`:
-
-- `.pdf`;
-- `.doc`;
-- `.docx`;
-- `.ppt`;
-- `.pptx`.
-
-`PROJECT.md` also lists text and Markdown as target formats, but they are not part of the current API upload rules. Add them to `API.md` before implementation.
-
-Additional validation:
-
-- file-size limits come from backend configuration;
-- backend validates extension, MIME type, file signature where practical, and size;
-- checksum is computed for duplicate detection;
-- required title and metadata are validated;
-- effective date must not be after expiration date;
-- unsupported encrypted or corrupted files return a specific error.
-
-## 13. Error Handling
-
-- Upload failure: retain safe metadata and allow retry.
-- Duplicate document: identify the existing document or require an explicit version action.
-- Parser failure: mark the document failed with a safe reason.
-- Partial indexing failure: do not mark the document indexed.
-- Embedding or vector-store failure: preserve the source document and allow retry.
-- Delete cleanup failure: show partial state and schedule or expose recovery.
-- Rebuild failure: preserve the last usable index when architecture permits.
-- Backend unavailable: keep current list visible and mark it stale.
-
-## 14. Security and Privacy
-
-- Management endpoints require explicit backend authorization.
-- Source files and previews require protected access.
-- Uploaded documents are untrusted and must be parsed in a constrained environment.
-- Reject or sanitize active content and dangerous file behavior.
-- Never expose storage paths, vector identifiers, credentials, or raw parser traces.
-- Logs must not contain full document contents by default.
-- Deletion and rebuild actions must be audited.
-- Retrieval must enforce document permissions before content reaches an AI model.
-
-## 15. Non-Functional Requirements
-
-- Parsing and indexing must run asynchronously for large documents.
-- Upload and indexing retries should be idempotent where practical.
-- Index rebuild must expose progress and remain recoverable.
-- The document list must support future pagination without breaking its contract.
-- Status refresh must avoid duplicate polling.
-- Indexing metrics may record durations and counts without storing sensitive content.
-
-## 16. Future Improvements
-
-- text, Markdown, and XLSX support after API approval;
-- per-document reindex and retry;
-- source preview;
-- version comparison and supersession workflows;
-- metadata extraction review;
-- document-level access control;
-- chunk diagnostics for administrators;
-- scheduled synchronization from approved repositories.
-
-## 17. Acceptance Criteria
-
-- [ ] Authorized users can list knowledge documents and see accurate status.
-- [ ] A valid supported document can be uploaded without being marked indexed prematurely.
-- [ ] Parsing, chunking, embedding, and indexing produce traceable source metadata.
-- [ ] Duplicate content is detected or handled through explicit version rules.
-- [ ] Failed indexing shows an actionable error and does not create an active partial index silently.
-- [ ] Deleting a document removes it from future retrieval and handles storage cleanup safely.
-- [ ] Full rebuild reports progress and does not create duplicate active chunks.
-- [ ] Unauthorized users cannot manage or retrieve restricted source content.
-- [ ] Empty, loading, indexing, indexed, outdated, failed, and backend-error states are distinct.
-- [ ] Available lint, type, test, migration, and build checks pass.
+### 文档列表
+
+- 列表展示：`title`、`document_type`、`version`、`issuing_authority`、`effective_date` / `expiration_date`、索引状态、`chunk_count`、`updated_at`，失败时附安全摘要。
+- 支持刷新与按 `status` 过滤（查询参数见 API.md）。
+
+### 上传
+
+- 使用文件类别：文档类（`.pdf` / `.doc` / `.docx` / `.ppt` / `.pptx` / `.txt` / `.md`）；白名单与大小上限见 API.md §9。
+- 上传前展示文件名与大小；上传进度与索引进度分开展示。
+- 后端要求的元数据（标题等）必须采集或提取；`effective_date` 不得晚于 `expiration_date`。
+- 加密或损坏的不受支持文件必须返回特定可读错误。
+- 后端确认索引完成前，UI 不得显示 `indexed`。
+
+### 索引状态
+
+- 文档状态机（取值定义权在 DATABASE.md `knowledge_documents.status`）：`uploaded` → `parsing` → `indexing` → `indexed`；异常态 `failed`；失效态 `outdated`。
+- 索引管线：`校验并存储 → Parse → Normalize → Semantic Chunking → 元数据补全 → Embedding → 向量索引 → 标记 indexed`；各环节职责独立，RAG 通用流程约束见 AGENTS.md。
+- 状态不得仅依赖颜色表达；`failed` 必须展示安全、可操作的失败原因。
+- 索引与重建均为异步任务（`task_type` 分别为 `knowledge_indexing` / `knowledge_reindexing`），轮询协议见 specs/_common.md。
+
+### 删除
+
+- 删除须显式确认并展示文档标题。
+- 后端必须协同完成：关系元数据软删除、源文件生命周期处理、向量索引移除。
+- 后端确认前 UI 不得永久移除该行；部分删除失败必须保持可见以便恢复。
+
+### 重建
+
+- 全量重建须确认（代价高且可能暂时影响检索）。
+- 同一时刻只允许一个等效重建任务；进度与失败详情必须可见。
+- 重建不得产生重复的生效 chunk。
+
+## 业务规则（本功能独有）
+
+- 原始源文档是重建检索数据的权威输入；向量库只存派生的 chunk 与 embedding，不是主业务记录。
+- 重复内容按 `checksum` 检测；无显式版本规则时，新版本不得静默替换现版本。
+- 生效、过期、被取代、`outdated` 的文档必须可区分。
+- 已删除或无权限的文档不得再被检索到；检索必须在内容进入 AI 模型前完成文档权限校验。
+- 索引成功要求全部必需元数据与向量条目一致提交；必需阶段失败时不得将文档标记为 `indexed`。
+- 重建必须可恢复：失败的重建不得静默破坏最后可用的索引。
+- RAG 答案必须保留对文档元数据的可追溯引用。
+- 文档全文、embedding 不得下发前端；上传文档按不可信内容在受限环境中解析；响应与日志不得暴露向量标识符与原始 parser 错误堆栈。
+
+## 字段清单（chunk 元数据）
+
+索引管线必须为每个 chunk 保留以下可获得的元数据（本清单为全仓库唯一定义处，不得删减）：
+
+- 文档 ID 与标题；
+- 文档类型（`document_type`）与版本（`version`）；
+- 页码（page number）；
+- 章 / 节 / 条（chapter / section / article）；
+- 生效日期（`effective_date`）与发布机构（`issuing_authority`）；
+- 来源引用（source reference）。
+
+## UI 结构
+
+页面按 `页头与知识库聚合计数 → 上传与重建操作 → 过滤器 → 文档表格/卡片 → 状态与错误详情` 组织。文件选择器或拖拽区须可访问；删除与重建使用确认对话框；请求进行中禁用重复操作；状态展示与破坏性操作可键盘使用；面向用户的文案为中文且错误可操作。
+
+## API 端点
+
+- `GET /api/knowledge/documents` — 文档列表（分页、按 `status` 过滤）
+- `POST /api/knowledge/documents` — 上传源文档（`FormData`，返回异步索引任务）
+- `DELETE /api/knowledge/documents/{id}` — 删除文档并移除其索引数据
+- `POST /api/knowledge/rebuild` — 全量重建索引（异步任务）
+- `GET /api/knowledge/status` — 知识库聚合计数（文档总数及各状态计数）
+- `GET /api/tasks/{task_id}` — 任务轮询（协议见 specs/_common.md）
+
+请求/响应 schema 见 API.md，本文不复制。
+
+## 数据影响
+
+涉及表：`knowledge_documents`（源元数据与当前索引状态）、`knowledge_index_jobs`（索引操作与结果）、`uploaded_files`（源文件元数据）、`ai_tasks`（索引与重建异步任务）、`audit_logs`（上传、删除、重建审计）；表结构定义权在 DATABASE.md。向量库存放 chunk、embedding 与来源引用；对象存储存放原始文档。
+
+## 验收标准
+
+- [ ] 授权用户可列出知识文档并看到准确状态；知识库聚合计数与列表一致。
+- [ ] 合法文档可上传，且不会被提前标记为 `indexed`。
+- [ ] 解析、分块、embedding、索引产出可追溯的来源元数据（chunk 元数据字段齐全）。
+- [ ] 重复内容按 checksum 检测，或经显式版本规则处理。
+- [ ] 索引失败展示可操作错误，且不静默产生半成品的生效索引。
+- [ ] 删除文档后不再被检索到，源文件与向量索引清理安全可靠。
+- [ ] 全量重建报告进度，不产生重复的生效 chunk，失败时可恢复到最后可用索引。
+- [ ] 空、加载中、各索引状态与后端错误状态可区分；通用验收标准见 specs/_common.md。

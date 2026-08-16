@@ -1,287 +1,98 @@
-# Fire Regulation Question Answering
+# 法规问答（Regulation QA）
 
-## 1. Purpose
+## 1. 目的与范围
 
-The Fire Regulation QA feature helps fire inspectors find and understand relevant laws, regulations, standards, and official guidance. Answers must be grounded in the configured knowledge base and accompanied by traceable sources.
+帮助消防检查人员查找并理解相关消防法律、法规、标准与官方指引。回答必须基于已配置的知识库检索结果生成，并附可追溯的来源引用。
 
-## 2. Status and Scope
+范围内：
 
-**Status:** Planned. No application code exists in the current repository, so implementation is not verified.
+- 单轮自然语言提问（中文）；
+- 对已索引法规文档的检索与 rerank；
+- 基于证据的回答生成与来源引用展示；
+- 复制、清空、重试操作；
+- 明确的无证据行为。
 
-Current scope:
+首版范围外：
 
-- single-turn natural-language questions;
-- retrieval and reranking over indexed fire-regulation documents;
-- grounded answer generation;
-- source citation display;
-- copy, clear, and retry actions;
-- explicit no-evidence behavior.
+- 多轮对话记忆；
+- 问答历史、反馈与导出分享；
+- 提问时上传私有语料（知识库源文档管理归知识库功能，见 specs/knowledge-base.md）；
+- 法律后果预测与自动执法决定。
 
-Out of scope for the first version:
+角色与权限通用规则见 specs/_common.md。本功能特有要求：检索仅覆盖当前用户有权查看的文档，权限校验必须在内容送入模型之前执行；回答不得泄露用户无权查看的来源文档。
 
-- multi-turn memory;
-- legal-case prediction;
-- automatic enforcement decisions;
-- user-uploaded private corpora during a QA request;
-- answer export and sharing;
-- personalized recommendations.
+## 2. 功能要求
 
-## 3. Users and Permissions
+### 提问输入
 
-- **Inspector**: asks operational or legal questions within authorized knowledge sources.
-- **Supervisor**: uses the same grounded-answer workflow.
-- **Administrator**: manages access to knowledge sources through the knowledge-base feature.
+- 支持多行中文文本；`Enter` 提交，`Shift+Enter` 换行。
+- 空白（含纯空白字符）问题不得提交。
+- 问题长度上限 4,000 字符（后端可定义更严格限制），前后端均需校验；无害的首尾空白可规范化，但不得改变语义。
+- 同一请求 pending 期间禁止重复提交。
 
-Access to a QA answer must never reveal a source document that the current user is not authorized to view.
+### 回答展示
 
-## 4. Goals
-
-Users must be able to:
+- 以安全文本或消毒后的 Markdown 渲染，保留标题、列表、表格等结构；不得渲染不安全的 HTML。
+- 结论与支撑引用在视觉上明确区分。
+- 检索数量与处理耗时仅在后端返回时展示。
+- 复制必须包含回答正文与可读的来源清单。
 
-- ask a fire-regulation question in Chinese;
-- receive a concise, evidence-grounded answer;
-- identify the documents and passages supporting the answer;
-- understand when evidence is incomplete or unavailable;
-- copy the answer without losing its source references;
-- retry after a recoverable failure.
+### 来源展示
 
-## 5. User Workflow
+- 每条来源展示后端返回的元数据（文档标题、发文机关、版本/生效日期、章节条款、页码、匹配摘录等），只展示后端确认返回的字段。
+- 不向普通用户展示内部向量 ID 与原始相似度分数（诊断用途除外）。
 
-```text
-Open Regulation QA
-  ↓
-Enter Question
-  ↓
-Submit
-  ↓
-Retrieve Authorized Documents
-  ↓
-Rerank Evidence
-  ↓
-Generate Grounded Answer
-  ↓
-Review Answer and Citations
-  ├─ Copy / Clear
-  └─ Retry if Failed
-```
+### 清空与重试
 
-## 6. Functional Requirements
+- 清空由用户显式触发，重置问题与当前结果。
+- 重试重新提交同一问题，不得产生并发重复请求。
 
-### Question Input
+## 3. 业务规则（本功能独有）
 
-- The page must support multiline Chinese text.
-- `Enter` should submit when appropriate; `Shift+Enter` should insert a newline.
-- Empty or whitespace-only questions must not be submitted.
-- The first version should limit a question to 4,000 characters unless the backend defines a stricter limit.
-- Submission must be disabled while the same request is pending.
+- RAG 启用时检索是强制的，禁止跳过检索环节；模型不得仅凭通用模型知识回答法规问题。
+- 无足够检索证据时必须明确说明，禁止编造答案或给出确定性法律结论；回答必须给出来源。
+- 不得编造法律名称、条款编号、发文机关、生效日期或引文；引用标识必须来自检索记录，不得由模型虚构。
+- 证据冲突时，回答必须说明冲突并指出各来源。
+- 过期或已被替代的文档必须明确标注，不得静默排在现行文档之前。
+- 引用必须解析到生成答案实际使用的索引来源元数据，并通过稳定的文档引用在重建索引后仍可追溯。
+- 检索、rerank、生成是后端相互独立的职责（见 AGENTS.md RAG 规则与 AI_CONTEXT.md）；检索数量等默认参数来自后端配置，不得写死在前端常量。
+- AI 输出仅为辅助意见，不能替代检查人员的法律审查或官方法律决定。
+- 日志默认不完整记录用户问题与来源摘录；通用日志规则见 specs/_common.md。
 
-### Answer Display
+## 4. UI 结构
 
-- The answer must be rendered as safe text or sanitized Markdown.
-- The UI must preserve useful structure such as headings, lists, and tables.
-- The answer must visually distinguish its conclusion from supporting citations.
-- The UI should show retrieval count and processing time only when returned by the backend.
-- Copy must include the answer and a readable source list.
+组件顺序：页面说明 → 提问输入框 → 回答卡片 → 来源列表（可展开来源详情）。
 
-### Source Display
+状态流转：empty（引导用户输入法规问题）→ retrieving（检索中）→ generating（生成中）→ success（展示回答与来源）；另有 no-evidence（明确的无证据警告）与 error（可读错误 + 重试；后端不可用时说明情况并保留问题文本）。loading / empty / error 三态通用要求见 specs/_common.md。
 
-Each source should show available metadata such as:
+交互要求：键盘可完整操作；回答更新与错误需对辅助技术可感知（announce）；不得以聊天式装饰弱化引用的可见性；不得把预设的"建议回答"伪装成生成结果。
 
-- document title;
-- issuing authority;
-- version or effective date;
-- chapter, section, or article;
-- page number;
-- quoted or matched excerpt within safe display limits.
+## 5. API 端点
 
-Internal vector identifiers and raw similarity scores should not be shown to ordinary users unless required for diagnostics.
+- `POST /api/qa/query` —— 提交问题，返回基于检索的回答与来源列表。请求/响应 schema（含 `sources` 元素字段）见 API.md §5，本规格不复制字段定义；前端不得假设后端返回契约之外的字段。
 
-### Clear and Retry
+本功能无文件上传；知识库源文档上传归知识库功能（见 specs/knowledge-base.md）。
 
-- Clear must reset the question and current result after an intentional user action.
-- Retry must resubmit the same question without creating duplicate concurrent requests.
+## 6. 数据影响
 
-## 7. Business Rules
+- 首版不建问答历史表；本功能只读知识库已索引内容（`knowledge_documents` 及配置的向量存储，表结构见 DATABASE.md）。
+- 后续如引入问答历史或反馈，须先在 DATABASE.md 定义 schema（含保留期、隐私与删除行为）后方可实现。
 
-- Retrieval is mandatory whenever RAG is enabled.
-- The model must not answer a regulation question solely from general model knowledge.
-- The answer must not fabricate a law, article number, issuing authority, effective date, or quotation.
-- If evidence conflicts, the answer must describe the conflict and identify the sources.
-- If no sufficient evidence is retrieved, the system must say so and avoid a definitive legal conclusion.
-- Expired or superseded documents must be labeled and should not silently outrank current documents.
-- AI output is assistance, not a substitute for the inspector's legal review or an official legal decision.
-- Citations must resolve to the exact indexed source metadata used to create the answer.
-
-## 8. UI Requirements
-
-Recommended layout:
-
-```text
-Page Introduction
-  ↓
-Question Composer
-  ↓
-Answer Card
-  ↓
-Source List / Expandable Source Details
-```
-
-Required states:
-
-- empty: invite the user to enter a fire-regulation question;
-- retrieving: show that regulations are being searched;
-- generating: show that an answer is being prepared;
-- success: show answer and sources;
-- no evidence: show an explicit evidence warning;
-- error: show a readable message and retry;
-- offline: explain backend unavailability.
-
-The interface must:
-
-- remain usable by keyboard;
-- announce answer updates and errors to assistive technology;
-- use clear Chinese labels;
-- avoid chat-like decorative behavior that obscures citations;
-- not display fake suggested answers as generated results.
-
-## 9. API Requirements
-
-Approved contract from `API.md`:
-
-```text
-POST /api/qa/query
-```
-
-Request:
-
-```json
-{
-  "question": "消防安全出口被锁闭时适用哪些规定？"
-}
-```
-
-Current documented response shape:
-
-```json
-{
-  "answer": "...",
-  "sources": []
-}
-```
-
-Before implementation, `API.md` and backend schemas must define each source object. Recommended fields are:
-
-```json
-{
-  "document_id": "uuid",
-  "title": "document title",
-  "article": "article or section",
-  "page": 1,
-  "excerpt": "supporting excerpt",
-  "effective_date": "YYYY-MM-DD"
-}
-```
-
-The frontend must not assume fields that the backend does not return.
-
-## 10. Data Impact
-
-No dedicated QA history table is required for the initial version.
-
-The feature reads authorized indexed content associated with:
-
-- `knowledge_documents`;
-- `knowledge_index_jobs`;
-- the configured vector store.
-
-If question history or feedback is introduced later, its schema, retention, privacy, and deletion behavior must be added to `DATABASE.md` before implementation.
-
-## 11. AI Workflow and Rules
-
-```text
-Question
-  ↓
-Normalize Query
-  ↓
-Retrieve Authorized Candidate Chunks
-  ↓
-Rerank
-  ↓
-Construct Context with Source Metadata
-  ↓
-LLM Generates Grounded Answer
-  ↓
-Validate Citations
-  ↓
-Return Answer and Sources
-```
-
-AI rules:
-
-- Retrieval, reranking, and generation remain separate backend responsibilities.
-- Default retrieval limits must come from configuration, not UI constants.
-- The model must be instructed to use only supplied evidence for legal claims.
-- The response must state uncertainty when evidence is insufficient.
-- Citation identifiers must be derived from retrieved records, not invented by the model.
-- Model/provider names must come from environment configuration.
-- Prompt text and raw model diagnostics must not be returned to the frontend.
-
-## 12. Validation
-
-- Reject empty questions.
-- Enforce the configured length limit on both frontend and backend.
-- Normalize harmless surrounding whitespace without changing meaning.
-- Treat user input as untrusted content.
-- Validate that returned citations reference documents available to the user.
-- Reject malformed model output instead of displaying partial internal structures.
-
-## 13. Error Handling
-
-- Backend unavailable: retain the question and allow retry.
-- Retrieval unavailable: do not fall back silently to ungrounded generation.
-- No relevant evidence: return a successful no-evidence result, not a fabricated answer.
-- Model timeout: show a retryable processing error.
-- Invalid AI output: report that the answer could not be generated safely.
-- Unauthorized source: omit the source and treat the response as invalid if it supported the answer.
-- Partial citation metadata: show only fields the backend confirmed.
-
-## 14. Security and Privacy
-
-- All business API calls require bearer authentication.
-- Retrieval must enforce document permissions before context reaches the model.
-- User questions and source excerpts must not be logged in full by default.
-- Rendered answer content must be sanitized.
-- Do not expose vector IDs, storage paths, prompts, API keys, or provider credentials.
-- Apply rate limits appropriate to model cost and abuse risk.
-
-## 15. Non-Functional Requirements
-
-- The user must receive visible feedback immediately after submission.
-- Request cancellation should be supported when the client or backend allows it.
-- Duplicate submissions must be prevented.
-- Long answers and citations must remain readable on desktop and tablet.
-- Citations should remain traceable across re-indexing through stable document references.
-- Retrieval and generation metrics may be recorded without storing sensitive content.
-
-## 16. Future Improvements
-
-- multi-turn grounded conversations;
-- question history and favorites;
-- answer feedback and quality evaluation;
-- source-document preview;
-- related regulations and suggested follow-up questions;
-- comparison of current and superseded provisions;
-- export with citations.
-
-## 17. Acceptance Criteria
-
-- [ ] A valid question reaches `POST /api/qa/query` through the centralized API client.
-- [ ] Retrieval and reranking occur before answer generation.
-- [ ] The answer is displayed with source metadata defined by the backend.
-- [ ] No-evidence results do not contain fabricated legal claims.
-- [ ] Expired or conflicting sources are visibly identified when present.
-- [ ] Copy includes a readable source list.
-- [ ] Empty, retrieving, generating, success, no-evidence, and error states are distinct.
-- [ ] Unauthorized source content is never exposed.
-- [ ] Unsafe Markdown or HTML is not rendered.
-- [ ] Available lint, type, test, and build checks pass.
+## 7. 错误处理（本功能特有）
+
+通用错误信封与失败兜底见 specs/_common.md，本功能特有：
+
+- 检索不可用：不得静默降级为无依据生成，按失败处理。
+- 无相关证据：返回成功的"无证据"结果，而非编造的回答。
+- 模型超时：展示可重试的处理错误，并保留问题文本。
+- 未授权来源：剔除该来源；若回答依赖了该来源，整个响应视为无效。
+
+## 8. 验收标准
+
+- [ ] 有效问题经统一 API client 到达 `POST /api/qa/query`。
+- [ ] 检索与 rerank 先于回答生成执行；回答附带来源元数据。
+- [ ] 无证据结果不含任何编造的法律主张，且界面明确提示证据不足。
+- [ ] 过期或冲突来源在界面上可辨识。
+- [ ] 复制内容包含可读的来源清单。
+- [ ] empty / retrieving / generating / success / no-evidence / error 状态可明确区分。
+- [ ] 未授权来源内容不泄露；不安全 Markdown/HTML 不被渲染。

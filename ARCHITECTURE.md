@@ -1,53 +1,37 @@
 # ARCHITECTURE.md
 
-# Fire Intelligence Platform Architecture
+# Fire Intelligence Platform 系统架构
 
-## 1. Purpose
+> 现状说明：`frontend/` 已按本文 §4/§6 初始化（Lovable 导入的 TanStack Start 项目）；`backend/` 尚未初始化，按本文 §7 的目标结构实现。
 
-This document describes the system architecture of the Fire Intelligence Platform.
-
-It defines:
-
-- system boundaries
-- frontend and backend responsibilities
-- module organization
-- data flow
-- AI orchestration
-- asynchronous task processing
-- storage responsibilities
-- deployment structure
-- security boundaries
-
-This document describes the target architecture.
-
-Before changing the architecture, inspect the existing implementation and preserve compatible project patterns whenever practical.
+本文档是"架构"类别的唯一权威文件，定义系统边界、前后端职责、模块组织、数据流、AI 编排、异步任务与存储职责。编码规则见 `AGENTS.md`，接口契约见 `API.md`，表结构与枚举见 `DATABASE.md`。
 
 ---
 
-## 2. System Overview
+## 1. 系统概览
 
-Fire Intelligence Platform is an AI-assisted application for fire safety inspection work.
+Fire Intelligence Platform 是一个面向消防安全检查工作的 AI 辅助系统。
 
-The platform supports:
+平台能力：
 
-- fire regulation question answering
-- inspection record generation
-- photo report generation
-- interview record generation
-- knowledge base management
-- document generation
-- file upload and storage
-- task progress tracking
-- user and permission management
-- statistics and audit records
+- 消防法规问答（regulation QA）
+- 检查记录生成（inspection record）
+- 拍照报告生成（photo report）
+- 询问记录生成（interview record）
+- 知识库管理
+- 文档生成（Word / PDF）
+- 文件上传与存储
+- 任务进度跟踪
+- 用户与权限管理
+- 统计与审计记录
 
-The system follows a separated frontend and backend architecture.
+系统采用前后端分离架构：
 
 ```text
 User
   |
   v
-Lovable React Frontend
+TanStack Start Frontend (React)
   |
   | HTTPS / REST API
   v
@@ -72,129 +56,76 @@ PostgreSQL            |       |       |           |
 
 ---
 
-## 3. Architecture Principles
+## 2. 架构原则
 
-The architecture should follow these principles:
-
-1. The frontend handles presentation and user interaction.
-2. The backend owns all business logic.
-3. AI inference runs only in the backend.
-4. PostgreSQL is the source of truth for business data.
-5. Object storage stores uploaded and generated files.
-6. The vector database stores retrieval data only.
-7. Long-running AI operations use asynchronous tasks.
-8. AI output should be converted into structured data before document generation.
-9. Modules should remain loosely coupled.
-10. External providers must be replaceable through configuration.
+1. 前端只负责展示与用户交互。
+2. 后端拥有全部业务逻辑。
+3. AI 推理只在后端运行。
+4. PostgreSQL 是业务数据的唯一权威来源。
+5. 对象存储保存上传与生成的文件。
+6. 向量数据库只保存检索数据。
+7. 长耗时 AI 操作一律使用异步任务。
+8. AI 输出必须先转化为结构化数据，再进入文档生成。
+9. 模块之间保持松耦合。
+10. 外部服务提供商必须可通过配置替换。
 
 ---
 
-## 4. System Boundaries
+## 3. 系统边界
 
-### 4.1 Frontend Boundary
+### 3.1 前端边界
 
-The frontend is responsible for:
+前端负责：页面渲染、导航、表单、文件选择、前端校验、API 请求、服务端状态展示、任务进度展示、AI 结果预览、用户编辑、文档下载，以及 loading / empty / error / success 四种界面状态。
 
-- page rendering
-- navigation
-- forms
-- file selection
-- frontend validation
-- API requests
-- server-state display
-- task progress display
-- AI result preview
-- user editing
-- document download
-- loading, empty, error, and success states
-
-The frontend must not perform:
+前端禁止做（权威清单）：
 
 - OCR
-- video frame extraction
-- speech recognition
-- RAG retrieval
-- vector indexing
-- LLM inference
-- vision inference
-- Word document generation
-- authoritative permission checks
-- direct database access
+- 视频抽帧
+- 语音识别
+- RAG 检索
+- 向量索引
+- LLM 推理
+- Vision 推理
+- Word 文档生成
+- 权威权限判断
+- 直接访问数据库
+
+### 3.2 后端边界
+
+后端负责：认证（authentication）、授权（authorization）、业务校验、数据库访问、文件存储、AI 编排、OCR、视觉分析、语音识别、RAG、文档生成、异步任务管理、审计日志、后端错误处理。
+
+后端是系统的权威边界。前端校验只改善用户体验，不能替代后端校验。
+
+### 3.3 AI 边界
+
+AI 组件只提供建议与结构化抽取结果。AI 生成的内容不得直接成为最终检查文档。
+
+固定流程：
+
+`AI 生成 → 结构化草稿 → 用户审阅 → 用户修改 → 最终文档`
 
 ---
 
-### 4.2 Backend Boundary
+## 4. 技术架构
 
-The backend is responsible for:
+### 4.1 前端
 
-- authentication
-- authorization
-- business validation
-- database access
-- file storage
-- AI orchestration
-- OCR
-- vision analysis
-- speech recognition
-- RAG
-- document generation
-- asynchronous task management
-- audit logging
-- backend error handling
+前端技术栈（与 `frontend/` 实际初始化一致）：
 
-The backend is the authoritative system boundary.
-
-Frontend validation improves user experience but does not replace backend validation.
-
----
-
-### 4.3 AI Boundary
-
-AI components provide suggestions and structured extraction results.
-
-AI-generated content must not automatically become a finalized inspection document.
-
-Recommended flow:
-
-```text
-AI Generation
-    |
-    v
-Structured Draft
-    |
-    v
-User Review
-    |
-    v
-User Modification
-    |
-    v
-Final Document
-```
-
----
-
-## 5. Technology Architecture
-
-### 5.1 Frontend
-
-Default frontend stack:
-
+- TanStack Start（`@tanstack/react-start`）
+- TanStack Router（文件路由）
 - React
 - TypeScript
 - Vite
 - Tailwind CSS
 - shadcn/ui
-- React Router
 - TanStack Query
 
-Frontend code should remain independent from specific AI providers.
+前端代码必须独立于具体 AI 提供商。
 
----
+### 4.2 后端
 
-### 5.2 Backend
-
-Default backend stack:
+后端技术栈：
 
 - FastAPI
 - Pydantic
@@ -202,116 +133,46 @@ Default backend stack:
 - Alembic
 - PostgreSQL
 
-Optional asynchronous processing:
+异步处理：轻量开发任务可用 FastAPI background tasks；生产负载使用基于 Redis 的任务队列（Celery / Dramatiq / RQ 或配置的其他任务系统）。长耗时的视频与文档任务不得阻塞正常 HTTP 请求。
 
-- FastAPI background tasks for lightweight development tasks
-- Redis-based task queue for production workloads
-- Celery, Dramatiq, RQ, or another configured task system
+### 4.3 AI 服务
 
-Long-running video and document tasks should not block normal HTTP requests.
+AI 能力一律通过后端服务抽象访问，走 OpenAI 兼容 API。能力分类：language model（Qwen / DeepSeek / GPT 等）、vision model、OCR engine、speech recognition、embedding model、reranker、retrieval service。
 
----
+具体模型名称与提供商必须来自配置，不得写死在业务代码中。
 
-### 5.3 AI Services
+### 4.4 存储
 
-AI capabilities are accessed through backend service abstractions.
+存储分为三类。
 
-Supported capability categories:
+关系数据库（PostgreSQL）保存：用户、权限、检查记录、拍照报告、询问记录、AI 任务状态、文件元数据、知识文档元数据、生成文档元数据、审计日志。
 
-- language model
-- vision model
-- OCR engine
-- speech recognition
-- embedding model
-- reranker
-- retrieval service
+对象存储（Supabase Storage 或本地存储）保存：上传的视频 / 图片 / 音频、源文档、生成的 Word / PDF 文档、抽取的关键帧、临时处理文件。
 
-Specific model names and providers must come from configuration.
+向量数据库（Chroma + 本地 Embedding 模型）保存：文档 chunk 向量、chunk 元数据、来源引用、检索标识。向量数据库不得被当作主业务数据库使用。
 
 ---
 
-### 5.4 Storage
+## 5. 高层模块
 
-Storage is divided into three categories.
+平台划分为 14 个业务模块，每个模块应有清晰边界：
 
-#### Relational Database
-
-Stores:
-
-- users
-- permissions
-- inspection records
-- photo reports
-- interview records
-- AI task states
-- file metadata
-- knowledge document metadata
-- generated document metadata
-- audit logs
-
-#### Object Storage
-
-Stores:
-
-- uploaded videos
-- uploaded images
-- uploaded audio
-- source documents
-- generated Word documents
-- generated PDF documents
-- extracted key frames
-- temporary processing files
-
-#### Vector Database
-
-Stores:
-
-- document chunk embeddings
-- chunk metadata
-- source references
-- retrieval identifiers
-
-The vector database must not be treated as the primary business database.
+`Authentication`、`User Management`、`Dashboard`、`Fire Regulation QA`、`Inspection Record`、`Photo Report`、`Interview Record`、`Knowledge Base`、`File Management`、`AI Task Management`、`Document Generation`、`Statistics`、`Audit Logging`、`System Settings`
 
 ---
 
-## 6. High-Level Modules
+## 6. 前端架构
 
-The platform is divided into the following modules:
+推荐分层：
 
 ```text
-Authentication
-User Management
-Dashboard
-Fire Regulation QA
-Inspection Record
-Photo Report
-Interview Record
-Knowledge Base
-File Management
-AI Task Management
-Document Generation
-Statistics
-Audit Logging
-System Settings
-```
-
-Each module should have a clear boundary.
-
----
-
-## 7. Frontend Architecture
-
-Recommended frontend layers:
-
-```text
-Pages
+Routes
   |
   v
-Feature Components
+Components
   |
   v
-Query Hooks
+Hooks
   |
   v
 API Services
@@ -320,126 +181,70 @@ API Services
 Central API Client
 ```
 
-### 7.1 Pages
+### 6.1 Routes
 
-Pages are responsible for:
+Route（页面）负责页面布局、功能组件组合、路由级状态与结果展示。Route 中不应堆积大量 API 调用或数据转换逻辑。
 
-- page layout
-- feature composition
-- route-level state
-- displaying results
+### 6.2 Components
 
-Pages should not contain large amounts of API or transformation logic.
+组件负责可复用的 UI 行为。代表性组件：`FileUploader`、`TaskProgress`、`BackendStatus`、`ResultPreview`、`SourceCitation`、`DocumentDownloadButton`、`EditableField`、`EmptyState`、`ErrorState`。
 
----
+避免创建职责几乎相同的多个组件。
 
-### 7.2 Components
+### 6.3 Hooks
 
-Components are responsible for reusable UI behavior.
+Hook 封装可复用的 UI 状态与服务端状态行为。代表性 Hook：`useHealth`、`useTaskStatus`、`useFileUpload`、`useRegulationQuery`、`useInspectionRecord`、`usePhotoReport`、`useKnowledgeDocuments`。
 
-Examples:
+TanStack Query 统一管理后端服务端状态；本地 React state 只管理临时 UI 状态。
 
-```text
-FileUploader
-TaskProgress
-BackendStatus
-ResultPreview
-SourceCitation
-DocumentDownloadButton
-EditableField
-EmptyState
-ErrorState
-```
+### 6.4 API Services
 
-Avoid creating multiple components with nearly identical responsibilities.
+API service 定义对 FastAPI 后端的调用。代表性 service：`authService`、`healthService`、`qaService`、`inspectionService`、`photoReportService`、`interviewService`、`knowledgeService`、`taskService`。
 
----
+页面组件中不得直接调用 `fetch`，统一经由唯一的中央 API client。
 
-### 7.3 Hooks
+### 6.5 前端目录结构
 
-Hooks encapsulate reusable UI and server-state behavior.
-
-Examples:
-
-```text
-useHealth
-useTaskStatus
-useFileUpload
-useRegulationQuery
-useInspectionRecord
-usePhotoReport
-useKnowledgeDocuments
-```
-
-TanStack Query should manage backend server state.
-
-Local React state should only manage temporary UI state.
-
----
-
-### 7.4 API Services
-
-API services define calls to the FastAPI backend.
-
-Examples:
-
-```text
-authService
-healthService
-qaService
-inspectionService
-photoReportService
-interviewService
-knowledgeService
-taskService
-```
-
-Do not call `fetch` directly throughout page components.
-
-Use one centralized API client.
-
----
-
-### 7.5 Suggested Frontend Structure
+`frontend/src/` 实际结构：
 
 ```text
 frontend/
 └── src/
-    ├── app/
-    │   ├── router.tsx
-    │   └── providers.tsx
+    ├── routes/            # TanStack Router 文件路由，每个文件一个页面
+    │   ├── __root.tsx
+    │   ├── index.tsx
+    │   ├── inspection-record.tsx
+    │   ├── interview-record.tsx
+    │   ├── knowledge-base.tsx
+    │   ├── photo-report.tsx
+    │   ├── regulation-qa.tsx
+    │   └── settings.tsx
     ├── components/
-    │   ├── layout/
-    │   ├── shared/
-    │   └── ui/
-    ├── features/
-    │   ├── auth/
-    │   ├── dashboard/
-    │   ├── regulation-qa/
-    │   ├── inspection-record/
-    │   ├── photo-report/
-    │   ├── interview-record/
-    │   └── knowledge-base/
-    ├── hooks/
+    │   ├── common/        # 业务通用组件（FileUpload、TaskProgress 等）
+    │   ├── layout/        # 布局组件（AppShell）
+    │   └── ui/            # shadcn/ui 组件
+    ├── hooks/             # 可复用 Hook
     ├── lib/
-    │   ├── api-client.ts
-    │   ├── env.ts
+    │   ├── api-client.ts  # 中央 API client
+    │   ├── services/      # 各业务模块的 API service
     │   └── utils.ts
-    ├── pages/
-    ├── services/
-    ├── types/
-    └── main.tsx
+    ├── router.tsx         # 创建 router（注入 QueryClient）
+    ├── routeTree.gen.ts   # 路由树，由 TanStack Router 自动生成，禁止手改
+    ├── server.ts          # TanStack Start 服务端入口
+    ├── start.ts           # TanStack Start 启动配置
+    └── styles.css
 ```
 
-This is a target structure, not a requirement to reorganize working code unnecessarily.
+规划补充：
 
-Adapt to the repository that already exists.
+- API service 当前位于 `lib/services/`；如规模增长可提升为顶层 `services/` 目录，保持"一个业务模块一个 service 文件"的约定。
+- 共享 TypeScript 类型规划放入 `types/` 目录（待建），避免类型散落在组件中。
 
 ---
 
-## 8. Backend Architecture
+## 7. 后端架构
 
-The backend should use a layered architecture.
+后端采用分层架构：
 
 ```text
 Router
@@ -456,90 +261,29 @@ Repository          AI Service
 Database           External Models
 ```
 
----
+### 7.1 Routers
 
-### 8.1 Routers
+Router 负责：接收 HTTP 请求、解析请求参数、应用依赖注入、调用 application service、返回 API 响应。
 
-Routers are responsible for:
+Router 必须保持薄，不得包含：大段 AI prompt、直接模型调用、冗长的文档生成逻辑、复杂的数据库工作流。
 
-- receiving HTTP requests
-- parsing request parameters
-- applying dependencies
-- calling application services
-- returning API responses
+### 7.2 Application Services
 
-Routers should remain thin.
+Application service 实现业务工作流，代表性 service：`InspectionRecordService`、`PhotoReportService`、`InterviewRecordService`、`KnowledgeBaseService`、`DocumentGenerationService`、`TaskService`。
 
-Routers should not contain:
+Application service 负责协调：数据库操作、AI service、存储 service、任务执行、文档渲染。
 
-- large AI prompts
-- direct model calls
-- long document-generation logic
-- complex database workflows
+### 7.3 Repositories
 
----
+Repository 封装数据库访问，负责查询、插入、更新、事务感知的持久化。业务规则不得藏在 repository 中。
 
-### 8.2 Application Services
+### 7.4 AI Services
 
-Application services implement business workflows.
+AI service 按能力划分：`LLMService`、`VisionService`、`OCRService`、`SpeechService`、`EmbeddingService`、`RerankerService`、`RetrievalService`。由 application service 编排这些能力 service。
 
-Examples:
+### 7.5 Storage Services
 
-```text
-InspectionRecordService
-PhotoReportService
-InterviewRecordService
-KnowledgeBaseService
-DocumentGenerationService
-TaskService
-```
-
-Application services coordinate:
-
-- database operations
-- AI services
-- storage services
-- task execution
-- document rendering
-
----
-
-### 8.3 Repositories
-
-Repositories encapsulate database access.
-
-They are responsible for:
-
-- queries
-- inserts
-- updates
-- transaction-aware persistence
-
-Business rules should not be hidden inside repositories.
-
----
-
-### 8.4 AI Services
-
-AI services should be divided by capability.
-
-```text
-LLMService
-VisionService
-OCRService
-SpeechService
-EmbeddingService
-RerankerService
-RetrievalService
-```
-
-The application service orchestrates these capability services.
-
----
-
-### 8.5 Storage Services
-
-Storage access should use an abstraction.
+存储访问必须使用抽象层：
 
 ```text
 StorageService
@@ -549,11 +293,11 @@ StorageService
   +-- S3StorageProvider
 ```
 
-Business modules should not depend directly on one storage provider.
+业务模块不得直接依赖某一个存储提供商。
 
----
+### 7.6 后端目标目录结构
 
-### 8.6 Suggested Backend Structure
+`backend/` 尚未初始化，以下为目标结构：
 
 ```text
 backend/
@@ -590,461 +334,127 @@ backend/
 └── pyproject.toml
 ```
 
-Preserve existing project conventions when they already provide equivalent responsibilities.
-
 ---
 
-## 9. API Architecture
+## 8. API 架构
 
-The frontend communicates with the backend through REST APIs.
-
-Default API prefix:
+前端通过 REST API 与后端通信。默认 API 前缀：
 
 ```text
 /api
 ```
 
-Approved target modules from `API.md`:
+目标 API 模块（与 `API.md` 对应）：
 
-```text
-/api/auth
-/api/qa
-/api/inspection-record
-/api/photo-report
-/api/interview-record
-/api/knowledge
-/api/tasks
-/api/statistics
-```
+`/api/auth`、`/api/qa`、`/api/inspection-record`、`/api/photo-report`、`/api/interview-record`、`/api/knowledge`、`/api/tasks`、`/api/statistics`
 
-API details belong in `API.md`.
+接口细节以 `API.md` 为准。
 
----
+### 8.1 标准请求流
 
-### 9.1 Standard Request Flow
+`Frontend Component → TanStack Query Hook → Frontend API Service → FastAPI Router → Application Service → Database / AI / Storage`
 
-```text
-Frontend Component
-      |
-      v
-TanStack Query Hook
-      |
-      v
-Frontend API Service
-      |
-      v
-FastAPI Router
-      |
-      v
-Application Service
-      |
-      v
-Database / AI / Storage
-```
+### 8.2 标准错误流
+
+`后端异常 → Application Exception → Global Exception Handler → 标准 API 错误 → Frontend API Client → 可读的 UI 错误`
+
+统一错误格式见 `API.md`。不得向普通用户暴露后端堆栈信息。
 
 ---
 
-### 9.2 Standard Error Flow
+## 9. 异步任务架构
 
-```text
-Backend Error
-     |
-     v
-Application Exception
-     |
-     v
-Global Exception Handler
-     |
-     v
-Standard API Error
-     |
-     v
-Frontend API Client
-     |
-     v
-Readable UI Error
-```
+以下操作可能需要异步执行：视频抽帧、视觉分析、OCR、语音转写、知识库索引、大文档解析、Word 文档生成、PDF 转换、批量报告生成。
 
-Errors should use a consistent shape.
+任务流：
 
-Example:
+`前端上传 → POST 生成接口 → 创建业务草稿 → 创建 AI 任务 → 返回 task_id → 后台 Worker 执行 → 更新进度 → 保存结构化结果 → 前端轮询 → 预览与审阅`
 
-```json
-{
-  "success": false,
-  "error": {
-    "code": "TASK_FAILED",
-    "message": "The video analysis task failed.",
-    "details": null
-  }
-}
-```
+### 9.1 任务状态
 
-Do not expose backend stack traces to normal users.
+任务状态枚举见 `DATABASE.md` 的 `ai_tasks` 表。
 
----
+任务记录应包含：任务类型、当前状态、进度、当前阶段、结果引用、错误码、错误信息、创建时间、开始时间、完成时间。
 
-## 10. Asynchronous Task Architecture
+### 9.2 任务轮询
 
-The following operations may require asynchronous execution:
-
-- video frame extraction
-- vision analysis
-- OCR
-- speech transcription
-- knowledge base indexing
-- large document parsing
-- Word document generation
-- PDF conversion
-- batch report generation
-
-Recommended task flow:
-
-```text
-Frontend Upload
-      |
-      v
-POST Generation API
-      |
-      v
-Create Business Draft
-      |
-      v
-Create AI Task
-      |
-      v
-Return task_id
-      |
-      v
-Background Worker
-      |
-      v
-Update Progress
-      |
-      v
-Save Structured Result
-      |
-      v
-Frontend Polling
-      |
-      v
-Preview and Review
-```
-
----
-
-### 10.1 Task States
-
-Supported task states:
-
-```text
-pending
-queued
-processing
-completed
-failed
-cancelled
-```
-
-A task should include:
-
-- task type
-- current status
-- progress
-- current stage
-- result reference
-- error code
-- error message
-- created time
-- start time
-- completion time
-
----
-
-### 10.2 Task Polling
-
-The frontend may poll:
+前端通过以下接口轮询：
 
 ```text
 GET /api/tasks/{task_id}
 ```
 
-Polling should:
+轮询要求：使用合理间隔；任务完成 / 失败 / 取消后停止；容忍临时网络错误；避免重复轮询请求。
 
-- use a reasonable interval
-- stop after completion
-- stop after failure
-- stop after cancellation
-- handle temporary network errors
-- avoid duplicate polling requests
-
-Future versions may use:
-
-- Server-Sent Events
-- WebSocket
-- push notifications
-
-Polling remains the default initial implementation.
+未来版本可引入 Server-Sent Events / WebSocket / 推送通知；轮询仍是初始默认实现。
 
 ---
 
-## 11. RAG Architecture
+## 10. RAG 架构
 
-The RAG subsystem has separate indexing and query pipelines.
+RAG 子系统分为索引管线与查询管线。
 
-### 11.1 Indexing Pipeline
+### 10.1 索引管线
 
-```text
-Source Document
-      |
-      v
-File Parser
-      |
-      v
-Document Normalization
-      |
-      v
-Semantic Chunking
-      |
-      v
-Metadata Enrichment
-      |
-      v
-Embedding
-      |
-      v
-Vector Database
-```
+`源文档 → 文件解析 → 文档规范化 → 语义切分（chunking） → 元数据增强 → Embedding → 向量数据库`
 
-Metadata should preserve information such as:
+chunk 元数据应保留：document ID、title、document type、page number、article number（条文号）、section、source path、version、effective date、issuing authority。
 
-- document ID
-- title
-- document type
-- page number
-- article number
-- section
-- source path
-- version
-- effective date
-- issuing authority
+### 10.2 查询管线
+
+`用户问题 → Query 规范化 → Retriever → 候选 chunks → Reranker → 上下文构建 → LLM → 答案与引用`
+
+法规问答应尽可能附带可追溯的证据。系统必须区分：检索到的事实、模型生成的解读、无可用证据。
 
 ---
 
-### 11.2 Query Pipeline
+## 11. 检查记录管线
 
-```text
-User Question
-      |
-      v
-Query Normalization
-      |
-      v
-Retriever
-      |
-      v
-Candidate Chunks
-      |
-      v
-Reranker
-      |
-      v
-Context Construction
-      |
-      v
-LLM
-      |
-      v
-Answer and Citations
-```
+`上传视频 → 创建 AI 任务 → 抽取音频与帧 →（语音识别 ∥ 视觉分析）→ OCR → 结构化抽取 → 检查记录草稿 → 用户审阅 → 模板渲染 → DOCX / PDF 输出`
 
-Regulation answers should include traceable evidence whenever possible.
-
-The system should distinguish between:
-
-- retrieved facts
-- model-generated interpretation
-- unavailable evidence
+结构化检查记录必须先入库，再进入文档渲染。
 
 ---
 
-## 12. Inspection Record Architecture
+## 12. 拍照报告管线
 
-```text
-Upload Video
-      |
-      v
-Create AI Task
-      |
-      v
-Extract Audio and Frames
-      |
-      +------------------+
-      |                  |
-      v                  v
-Speech Recognition     Vision Analysis
-      |                  |
-      +--------+---------+
-               |
-               v
-              OCR
-               |
-               v
-      Structured Extraction
-               |
-               v
-      Inspection Record Draft
-               |
-               v
-          User Review
-               |
-               v
-       Template Rendering
-               |
-               v
-        DOCX / PDF Output
-```
+`上传视频 → 创建 AI 任务 → 抽取候选帧 → 帧去重 → 视觉分析 → 地址与隐患抽取 → 选取关键帧 → 可编辑说明文字 → 模板渲染 → 拍照报告`
 
-The structured inspection record should be stored before document rendering.
+用户必须能够：删除识别错误的帧、调整帧顺序、编辑描述文字、核对识别出的地址、核对隐患信息。
 
 ---
 
-## 13. Photo Report Architecture
+## 13. 询问记录管线
 
-```text
-Upload Video or Images
-          |
-          v
-     Create AI Task
-          |
-          v
-   Extract Candidate Frames
-          |
-          v
-   Remove Duplicate Frames
-          |
-          v
-      Vision Analysis
-          |
-          v
-      Address and Violation Extraction
-          |
-          v
-      Select Key Frames
-          |
-          v
-       Editable Captions
-          |
-          v
-       Template Rendering
-          |
-          v
-         Photo Report
-```
+`上传音频 → 语音识别 → 转写文本清洗 → 说话人分离 → 结构化抽取 → 询问记录草稿 → 用户审阅 → 模板渲染`
 
-The user should be able to:
-
-- remove an incorrect frame
-- change frame order
-- edit descriptions
-- verify the recognized address
-- verify violation information
+原始转写文本与结构化记录必须分开保存。
 
 ---
 
-## 14. Interview Record Architecture
+## 14. 文档生成架构
 
-```text
-Upload Audio or Video
-          |
-          v
-    Speech Recognition
-          |
-          v
-    Transcript Cleaning
-          |
-          v
-    Speaker Segmentation
-          |
-          v
-    Structured Extraction
-          |
-          v
-    Interview Record Draft
-          |
-          v
-       User Review
-          |
-          v
-    Template Rendering
-```
+文档必须由结构化业务数据生成：
 
-The original transcript and the structured record should remain separate.
+`数据库记录 → 模板数据映射 → 模板渲染 → 生成 DOCX → 可选 PDF 转换 → 对象存储 → 生成文档元数据入库`
 
----
-
-## 15. Document Generation Architecture
-
-Documents should be generated from structured business data.
-
-```text
-Database Record
-      |
-      v
-Template Data Mapper
-      |
-      v
-Template Renderer
-      |
-      v
-Generated DOCX
-      |
-      v
-Optional PDF Conversion
-      |
-      v
-Object Storage
-      |
-      v
-Generated Document Metadata
-```
-
-Word templates are stored in:
+Word 模板存放于：
 
 ```text
 backend/data/templates/
 ```
 
-Do not generate documents directly from uncontrolled free-form model output.
+不得直接用不受控的自由文本模型输出生成文档。
 
 ---
 
-## 16. File Architecture
+## 15. 文件架构
 
-Uploaded files are handled as follows:
+上传文件处理流：
 
-```text
-Client File
-    |
-    v
-Frontend Validation
-    |
-    v
-Backend Validation
-    |
-    v
-Object Storage
-    |
-    v
-File Metadata Record
-    |
-    v
-Processing Task
-```
+`客户端文件 → 前端校验 → 后端校验 → 对象存储 → 文件元数据记录 → 处理任务`
 
-Temporary files should be stored separately from permanent files.
-
-Recommended categories:
+临时文件必须与永久文件分开存放。推荐目录分类：
 
 ```text
 uploads/
@@ -1055,54 +465,31 @@ templates/
 generated/
 ```
 
-Temporary processing files should be cleaned automatically.
+临时处理文件应自动清理。
 
 ---
 
-## 17. Database Architecture
+## 16. 数据库架构
 
-PostgreSQL stores structured business data.
+PostgreSQL 保存结构化业务数据，主要数据库域：`Identity`、`Inspection`、`Photo Report`、`Interview Record`、`File Metadata`、`Generated Documents`、`AI Tasks`、`Knowledge Base Metadata`、`Audit Logs`。
 
-The main database domains are:
+表结构与枚举见 `DATABASE.md`。
 
-```text
-Identity
-Inspection
-Photo Report
-Interview Record
-File Metadata
-Generated Documents
-AI Tasks
-Knowledge Base Metadata
-Audit Logs
-```
-
-Detailed table definitions belong in `DATABASE.md`.
-
-The database should not store large file binaries unless explicitly required.
+数据库不得保存大文件二进制，除非有明确要求。
 
 ---
 
-## 18. Authentication and Authorization
+## 17. 认证与授权
 
-Authentication identifies the current user.
+认证（authentication）确认当前用户身份；授权（authorization）判断用户是否允许执行某个操作。
 
-Authorization determines whether the user may perform an action.
+认证方案：自建 email/password 注册登录 + 密码哈希存储 + JWT Bearer Token，接口契约见 `API.md`。
 
-Recommended roles:
+角色定义见 `DATABASE.md`。
 
-```text
-admin
-supervisor
-inspector
-viewer
-```
+授权必须在后端强制执行；前端路由守卫只是界面层措施。
 
-Authorization must be enforced in the backend.
-
-Frontend route protection is only a user-interface measure.
-
-Example authorization flow:
+授权流：
 
 ```text
 Request
@@ -1122,428 +509,57 @@ Application Service
 
 ---
 
-## 19. Audit Architecture
+## 18. 工程规范
 
-Important actions should generate audit records.
+### 18.1 审计
 
-Examples:
+关键操作必须生成审计记录：登录、文件上传、记录创建、AI 文档生成、用户修改 AI 结果、记录定稿、知识文档删除、文档下载、权限变更。审计日志尽量 append-only；不得写入密钥或完整敏感文档内容。
 
-- user login
-- file upload
-- inspection record creation
-- AI document generation
-- user modification of AI results
-- record finalization
-- knowledge document deletion
-- generated document download
-- permission modification
+### 18.2 配置
 
-Audit logs should be append-only wherever practical.
+配置全部来自环境变量或安全配置中心，经后端统一的 settings 模块加载。禁止在业务代码中散落读取环境变量；禁止硬编码密钥。
 
-Do not store secrets or complete sensitive document content in audit logs.
+### 18.3 外部服务抽象
 
----
+LLM、OCR、语音识别、embedding、reranker、对象存储、向量数据库一律通过内部接口访问。更换提供商不得要求重写业务工作流。
 
-## 20. Configuration Architecture
+### 18.4 安全
 
-Configuration comes from environment variables or secure configuration providers.
+业务 API 必须认证；授权在后端校验；上传文件校验类型 / 大小 / MIME；使用安全的存储文件名；下载 URL 需签名或受保护；限制 CORS；必要时限流；输入校验、输出转义；数据库最小权限访问。永不信任：前端校验结果、上传文件名、客户端提供的 MIME 类型、客户端提供的用户 ID、AI 生成的法律结论。
 
-Typical configuration groups:
+### 18.5 可观测性
 
-```text
-Application
-Database
-Storage
-Authentication
-LLM
-Vision
-OCR
-Speech
-Embedding
-Reranker
-Vector Database
-Task Queue
-Logging
-```
+后端使用结构化日志，建议字段：`timestamp`、`level`、`request_id`、`user_id`、`task_id`、`module`、`operation`、`duration`、`status`、`error_code`。不记录：密码、访问令牌、API key、完整敏感文档、非必要的模型输入输出。关注指标：API 响应时间、任务处理时长、任务失败率、模型请求失败率、知识索引失败率、存储失败率、数据库连接失败。提供健康检查接口 `/health`。
 
-Configuration should be loaded through one centralized backend settings module.
+### 18.6 部署
 
-Never scatter environment-variable reads throughout business code.
+开发环境：浏览器 → Vite dev server → 本地 FastAPI → 本地 PostgreSQL / 对象存储 / 向量数据库 / AI 服务。生产环境：浏览器 → CDN → 反向代理 / API 网关 → FastAPI → PostgreSQL / 对象存储 / 向量数据库 / Redis 任务队列 / 后台 Worker / 外部 AI 提供商；容器化部署。前后端部署保持相互独立。
+
+### 18.7 扩展性
+
+初期可作为单个 FastAPI 应用运行；负载增长后再拆分 API Server / AI Worker / Video Worker / Document Worker / Knowledge Index Worker / Scheduler。在确有需要之前不引入分布式复杂度；保持模块边界干净以便未来拆分。
+
+### 18.8 可靠性
+
+需处理：网络超时、提供商故障、模型限流、非法 AI 输出、上传中断、Worker 重启、任务重复提交、文档生成失败、管线部分失败。长耗时任务尽量幂等；重试任务不得静默产生重复的最终记录。
+
+### 18.9 测试
+
+测试分层：unit（工具函数、schema 校验、解析器、数据映射、字段格式化、任务状态流转）、integration（API 与数据库、存储、任务执行、RAG 检索、文档生成）、e2e（登录、上传、任务进度、结果审阅、记录更新、文档下载）。自动化测试中外部 AI 提供商必须可 mock。
 
 ---
 
-## 21. External Service Abstraction
-
-External providers should be accessed through internal interfaces.
-
-Example:
-
-```text
-Application Service
-       |
-       v
-Vision Interface
-       |
-       +-- Provider A
-       +-- Provider B
-       +-- Local Model
-```
-
-The same pattern applies to:
-
-- LLM
-- OCR
-- speech recognition
-- embeddings
-- reranker
-- object storage
-- vector database
-
-Changing providers should not require rewriting business workflows.
-
----
-
-## 22. Security Architecture
-
-Security controls should include:
-
-- authenticated business APIs
-- backend authorization checks
-- file type validation
-- file size validation
-- MIME type validation
-- safe storage filenames
-- signed or protected download URLs
-- restricted CORS configuration
-- secret management
-- request rate limits where required
-- input validation
-- output escaping
-- audit logging
-- least-privilege database access
-
-Never trust:
-
-- frontend validation
-- uploaded filenames
-- client-provided MIME types
-- client-provided user IDs
-- AI-generated legal conclusions
-
----
-
-## 23. Observability
-
-The backend should support structured logging.
-
-Useful log fields include:
-
-```text
-timestamp
-level
-request_id
-user_id
-task_id
-module
-operation
-duration
-status
-error_code
-```
-
-Do not log:
-
-- passwords
-- access tokens
-- API keys
-- complete sensitive documents
-- unnecessary model inputs and outputs
-
-Recommended operational signals:
-
-- API response time
-- task processing duration
-- task failure rate
-- model request failure rate
-- knowledge indexing failure rate
-- storage failure rate
-- database connection failures
-
----
-
-## 24. Deployment Architecture
-
-### 24.1 Development
-
-```text
-Browser
-  |
-  v
-Vite Development Server
-  |
-  v
-Local FastAPI
-  |
-  +-- Local PostgreSQL or development database
-  +-- Local object storage
-  +-- Local or remote AI services
-  +-- Local vector database
-```
-
----
-
-### 24.2 Production
-
-```text
-User Browser
-      |
-      v
-Frontend Hosting / CDN
-      |
-      v
-Reverse Proxy / API Gateway
-      |
-      v
-FastAPI Application
-      |
-      +-- PostgreSQL
-      +-- Object Storage
-      +-- Vector Database
-      +-- Redis / Task Queue
-      +-- Background Workers
-      +-- External AI Providers
-```
-
-Frontend and backend deployments should remain independent.
-
----
-
-## 25. Scalability
-
-Initial development may run as one FastAPI application.
-
-As workload grows, the following may be separated:
-
-```text
-API Server
-AI Worker
-Video Worker
-Document Worker
-Knowledge Index Worker
-Scheduler
-```
-
-Do not introduce distributed complexity before it is required.
-
-Keep module boundaries clean so services can be separated later.
-
----
-
-## 26. Reliability
-
-The architecture should handle:
-
-- network timeouts
-- provider failures
-- model rate limits
-- invalid AI output
-- interrupted uploads
-- worker restarts
-- duplicate task submission
-- document-generation failures
-- partial pipeline failures
-
-Long-running tasks should be idempotent where practical.
-
-Retrying a task should not silently create duplicate final records.
-
----
-
-## 27. Testing Architecture
-
-Recommended test levels:
-
-### Unit Tests
-
-Test:
-
-- utility functions
-- schema validation
-- parsers
-- data mapping
-- document field formatting
-- task state transitions
-
-### Integration Tests
-
-Test:
-
-- API and database interaction
-- storage integration
-- task execution
-- RAG retrieval
-- document generation
-
-### End-to-End Tests
-
-Test:
-
-- login
-- upload
-- AI task progress
-- result review
-- record update
-- document download
-
-External AI providers should be mockable during automated testing.
-
----
-
-## 28. Architectural Constraints
-
-The following constraints must be preserved:
-
-- No AI inference in the frontend.
-- No direct frontend database access for business data.
-- No hardcoded model names in business logic.
-- No hardcoded secrets.
-- No large binary files stored in normal database fields.
-- No business records stored only in generated Word files.
-- No regulation QA without retrieval when RAG is enabled.
-- No finalized AI document without user review.
-- No schema change without migration.
-- No rewriting published Lovable Git history.
-
----
-
-## 29. Architecture Decision Rules
-
-When making a design decision, prefer this order:
-
-1. Preserve existing working architecture.
-2. Reuse existing project abstractions.
-3. Keep frontend and backend responsibilities separated.
-4. Keep business logic independent from AI providers.
-5. Store business results as structured data.
-6. Prefer simple synchronous code for short operations.
-7. Use asynchronous tasks for long-running operations.
-8. Avoid premature microservices.
-9. Avoid duplicate data and duplicate modules.
-10. Document meaningful architectural changes.
-
----
-
-## 30. Architecture Change Process
-
-Before changing the architecture:
-
-1. Inspect the current implementation.
-2. Identify affected modules.
-3. Explain why the change is necessary.
-4. Check API and database compatibility.
-5. Create migrations when required.
-6. Update relevant documentation.
-7. Run tests and build checks.
-8. Preserve a working Git state.
-
-Documents that may require updates:
-
-```text
-AGENTS.md
-PROJECT.md
-AI_CONTEXT.md
-API.md
-DATABASE.md
-ARCHITECTURE.md
-ROADMAP.md
-CHANGELOG.md
-```
-
----
-
-## 31. Current Architecture Status
-
-Update this section as implementation progresses.
-
-### Frontend
-
-```text
-Status: Not initialized; documentation only
-Framework: Not installed
-Routing: Not implemented
-Server-state library: Not installed
-API client: Not implemented
-```
-
-### Backend
-
-```text
-Status: Not initialized; documentation only
-Framework: Not installed
-ORM: Not installed
-Migration system: Not initialized
-Task system: Not implemented
-```
-
-### AI
-
-```text
-LLM abstraction: Not implemented
-Vision abstraction: Not implemented
-OCR abstraction: Not implemented
-Speech abstraction: Not implemented
-Embedding abstraction: Not implemented
-Reranker abstraction: Not implemented
-```
-
-### Storage
-
-```text
-Relational database: Not configured
-Object storage: Not configured
-Vector database: Not configured
-Temporary storage: Not configured
-```
-
-### Known Architectural Blockers
-
-- Milestone 1 foundation has not been initialized.
-- API and database contracts are design targets and have no runtime implementation yet.
-
----
-
-## 32. Final Architecture Summary
-
-```text
-Frontend
-  |
-  | User Interface
-  v
-FastAPI Backend
-  |
-  | Business Orchestration
-  +-----------------------+
-  |           |           |
-  v           v           v
-Database    Storage     AI Services
-                          |
-                          v
-                         RAG
-                          |
-                          v
-                    Vector Database
-```
-
-The frontend displays and edits information.
-
-The backend controls business workflows.
-
-AI components extract and generate information.
-
-PostgreSQL stores authoritative structured records.
-
-Object storage stores files.
-
-The vector database supports knowledge retrieval.
-
-Users review AI-generated results before final document generation.
+## 19. 架构约束
+
+以下约束必须始终遵守：
+
+1. 前端禁止任何 AI 推理。
+2. 前端禁止直接访问业务数据库。
+3. 业务逻辑中禁止硬编码模型名称。
+4. 禁止硬编码密钥。
+5. 禁止在普通数据库字段中存放大文件二进制。
+6. 禁止业务记录只存在于生成的 Word 文件中。
+7. RAG 启用时，禁止不经检索的法规问答。
+8. 禁止未经用户审阅就将 AI 文档定稿。
+9. 禁止没有 migration 的 schema 变更。
+10. 禁止重写已发布的 Lovable Git 历史。

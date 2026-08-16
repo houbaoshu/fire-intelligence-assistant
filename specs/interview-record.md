@@ -1,312 +1,107 @@
-# Interview Record Generation
-
-## 1. Purpose
-
-The Interview Record feature transforms an authorized audio or video recording into a preserved transcript, a structured interview draft, and a backend-generated document. It reduces transcription effort while requiring users to verify speakers, wording, and structured content.
-
-## 2. Status and Scope
-
-**Status:** Planned. No application code exists in the current repository, so implementation is not verified.
-
-Current scope:
-
-- upload one audio or video recording;
-- start and monitor asynchronous transcription and structuring;
-- display the original transcript separately from the structured record;
-- edit interview metadata and structured content;
-- save reviewed changes;
-- generate and download a Word document.
-
-Out of scope for the first version:
-
-- live recording in the browser;
-- real-time transcription;
-- automatic identity verification;
-- voiceprint recognition;
-- electronic signatures;
-- translation;
-- automatic submission to external case systems.
-
-## 3. Users and Permissions
-
-- **Inspector**: creates and edits interview records permitted by the backend.
-- **Supervisor**: reviews or finalizes records when authorized.
-- **Administrator**: manages access and templates, not interview content by default.
-- **Viewer**: views finalized records only when authorized.
-
-Recordings, transcripts, structured records, and generated documents must share consistent backend authorization.
-
-## 4. Goals
-
-Users must be able to:
-
-- submit a supported recording;
-- understand transcription and generation progress;
-- compare transcript evidence with structured content;
-- correct speaker, wording, time, and metadata errors;
-- preserve reviewed structured data;
-- download a document that matches the reviewed content.
-
-## 5. User Workflow
-
-```text
-Open Interview Record
-  ↓
-Upload Audio or Video
-  ↓
-Submit
-  ↓
-Receive task_id
-  ↓
-Extract Audio if Required
-  ↓
-Speech Recognition
-  ↓
-Transcript Normalization and Speaker Segmentation
-  ↓
-LLM Structured Extraction
-  ↓
-Load Transcript and Record Draft
-  ↓
-Review and Edit
-  ↓
-Save
-  ↓
-Generate Word Document
-  ↓
-Download
-```
-
-## 6. Functional Requirements
-
-### Upload
-
-- The page must accept exactly one source recording in the initial version.
-- A user may select an audio file or a video file, not both for one request unless the backend contract explicitly supports it.
-- The selected filename, size, and media type must be displayed.
-- Users must be able to replace or remove the recording before submission.
-- Upload and processing progress must be shown separately.
-
-### Task Progress
-
-- The generation request must return a `task_id`.
-- The frontend must poll the shared task endpoint.
-- Status, stage, and progress must be displayed when returned.
-- Polling must stop after completion, failure, or cancellation.
-- A known active task should be recoverable after a page refresh.
-
-### Transcript
-
-- The transcript must be displayed separately from the structured record.
-- Speaker labels and timestamps should be shown when returned by the backend.
-- Uncertain words or segments must be marked rather than silently guessed.
-- The initial transcript should remain available even after structured content is edited.
-- If transcript editing is allowed, the UI must distinguish original machine output from the reviewed version.
-
-### Structured Record
-
-The record should support these fields when provided:
-
-- title;
-- interviewee name;
-- interviewer names;
-- location;
-- start and end time;
-- question-and-answer content or equivalent structured sections;
-- status.
+# 询问记录（Interview Record）
 
-Users must be able to review, edit, and save all generated fields before finalization.
-
-### Document Generation
-
-- The document must be rendered from saved structured data.
-- The original or reviewed transcript must not be silently substituted for the structured record.
-- The document must use the backend template.
-- Regeneration of finalized records must preserve prior versions as defined in `DATABASE.md`.
-
-## 7. Business Rules
-
-- The system must never invent a speaker, statement, time, location, identity, or admission.
-- Unintelligible speech must be marked as uncertain or inaudible.
-- Speaker attribution is a draft unless confirmed by a user.
-- The source recording, transcript, and structured interview record are distinct artifacts.
-- Cleaning punctuation or filler words must not change substantive meaning.
-- AI must not convert an ambiguous statement into a more certain statement.
-- Structured question-and-answer content must remain traceable to transcript evidence where practical.
-- No AI-generated interview record may be finalized without explicit authorized review.
-- A finalized record must not be silently overwritten.
-
-## 8. UI Requirements
-
-Recommended layout:
-
-```text
-Upload Area
-  ↓
-Task Progress
-  ↓
-Recording / Transcript Panel
-  ↓
-Structured Interview Editor
-  ↓
-Save / Generate / Download Actions
-```
-
-The UI must provide:
-
-- drag-and-drop and file-picker upload;
-- separate upload and processing indicators;
-- media metadata and optional protected playback when supported;
-- readable transcript with speaker and timestamp structure;
-- clear uncertain-segment markers;
-- editable structured fields;
-- unsaved-change warning;
-- validation summary;
-- confirmation before discarding edits;
-- keyboard-accessible controls and error announcements.
-
-The transcript and structured record must not be visually presented as identical content.
-
-## 9. API Requirements
-
-Approved contracts from `API.md`:
-
-```text
-POST /api/interview-record/generate
-GET  /api/tasks/{task_id}
-GET  /api/interview-record/{id}
-PUT  /api/interview-record/{id}
-GET  /api/interview-record/{id}/download
-```
-
-The current API document lists `audio` and `video` form fields. Before implementation, `API.md` and backend schemas must clarify that the request accepts exactly one source field in the initial version.
-
-Generation response must contain:
-
-```json
-{
-  "task_id": "uuid"
-}
-```
-
-The contracts must also define:
-
-- how task completion identifies the generated record;
-- transcript representation, speaker labels, timestamps, and uncertainty;
-- structured record detail and update payloads;
-- save-conflict behavior;
-- download content type and filename.
-
-Do not switch to plural paths without an intentional API revision.
-
-## 10. Data Impact
-
-Relevant target tables:
-
-- `interview_records` for transcript, structured content, metadata, and status;
-- `uploaded_files` for source recording and generated file metadata;
-- `ai_tasks` for transcription and generation progress;
-- `generated_documents` for versioned output files;
-- `audit_logs` for significant access, edit, finalize, and download actions.
-
-If segment-level transcript editing or provenance is required, a dedicated transcript-segment table must be designed and added to `DATABASE.md` before implementation rather than hidden in an undocumented schema.
-
-## 11. AI Workflow and Rules
-
-```text
-Audio or Video
-  ↓
-Extract / Normalize Audio
-  ↓
-Speech Recognition
-  ↓
-Speaker Segmentation when Supported
-  ↓
-Transcript with Confidence Metadata
-  ↓
-LLM Structured Extraction
-  ↓
-Validate Structured Output
-  ↓
-Interview Record Draft
-```
-
-AI responsibilities:
-
-- Speech recognition transcribes audible content.
-- Speaker segmentation separates speakers when technically supported.
-- The LLM organizes supplied transcript content into the required record structure.
-
-AI constraints:
-
-- The LLM must not reconstruct missing speech as fact.
-- Uncertain segments must remain visible to the review workflow.
-- Speaker labels must not be converted to identities without user-confirmed evidence.
-- The structured result must use validated JSON or equivalent typed output.
-- Provider and model names come from configuration.
-- Prompts, credentials, and internal model diagnostics must not be exposed.
-
-## 12. Validation
-
-- Current documented audio types: `.wav`, `.mp3`, and `.m4a`.
-- Current documented video types: `.mp4` and `.mov`.
-- File-size and duration limits must come from backend configuration.
-- The backend must verify extension, MIME type, file signature where practical, and size.
-- Exactly one source media field is required.
-- Start time must not be after end time.
-- Required fields for finalization must be defined by backend business rules.
-- Structured content must match the approved schema.
-
-## 13. Error Handling
-
-- Upload failure: retain safe selection and allow retry.
-- Unsupported or oversized media: show exact permitted rules.
-- No audible speech: return a specific result and do not fabricate a transcript.
-- Transcription partial failure: preserve usable segments and mark gaps.
-- Speaker segmentation failure: allow a transcript with neutral speaker labels.
-- LLM structure failure: preserve the transcript and allow regeneration.
-- Save conflict: preserve edits and offer reload/compare behavior.
-- Template or download failure: preserve the reviewed record and allow retry.
-
-## 14. Security and Privacy
-
-- Recordings and transcripts are sensitive and require backend authorization.
-- Use protected object storage and safe or signed download URLs.
-- Do not expose storage paths or public permanent links.
-- Do not log full recordings, transcripts, structured content, tokens, or prompts.
-- Apply explicit retention and temporary-file cleanup policies.
-- Send only required content to external AI providers and document provider data handling before production use.
-- Client-provided identities and record ownership must be verified by the backend.
-
-## 15. Non-Functional Requirements
-
-- Transcription and generation must run asynchronously.
-- Task retries should be idempotent where practical.
-- Long transcripts must remain navigable and editable without freezing the page.
-- Temporary network loss must not discard saved work.
-- The interface must be usable on desktop and tablet.
-- Significant access and finalization actions must be auditable.
-
-## 16. Future Improvements
-
-- real-time recording and transcription;
-- transcript search and synchronized playback;
-- user-confirmed speaker mapping;
-- multiple recordings;
-- translation;
-- electronic signatures;
-- transcript diff and record version comparison;
-- external case-system integration.
-
-## 17. Acceptance Criteria
-
-- [ ] Exactly one valid audio or video source creates one task.
-- [ ] Task polling stops at completed, failed, or cancelled status.
-- [ ] The transcript is preserved separately from the structured record.
-- [ ] Uncertain or inaudible speech is visible and not invented.
-- [ ] Users can review and edit interview metadata and structured content.
-- [ ] Saved changes persist through the backend.
-- [ ] The generated document matches saved reviewed structured data.
-- [ ] Finalized document versions are not silently overwritten.
-- [ ] Protected media, transcript, record, and document access requires authorization.
-- [ ] Available lint, type, test, migration, and build checks pass.
+## 目的与范围
+
+询问记录功能将一段授权询问录音转换为独立保存的转写原文（transcript）、结构化询问记录草稿与后端生成的 Word 文书，在降低转写工作量的同时，要求用户核对说话人、措辞与结构化内容后方可定稿。
+
+范围（v1）：上传单个音频 → 异步转写与结构化 → transcript 与结构化记录独立展示 → 编辑元数据与结构化内容 → 保存 → 生成并下载 Word 文书。
+
+范围外：浏览器内录音、实时转写、身份自动核验、声纹识别、电子签名、翻译、对接外部案件系统、视频来源（v1 仅音频）。
+
+## 角色与权限
+
+通用规则见 specs/_common.md。本功能最低角色：创建与编辑 `inspector`，审阅与定稿 `supervisor`，`viewer` 仅可查看已定稿记录。录音、transcript、结构化记录与生成文书共享同一套后端授权。
+
+## 功能要求
+
+### 上传
+
+- v1 每次只接受一个音频文件（音频类别，扩展名 `.wav` / `.mp3` / `.m4a`；白名单与大小上限见 API.md §9）。
+- 表单字段仅 `audio`（必填）与 `remarks`（可选，检查人员补充说明），不接受视频字段。
+- 展示所选文件名、大小与媒体类型；提交前可替换或移除；上传进度与处理进度分开展示。
+
+### 任务进度
+
+生成请求返回 `task_id`，前端轮询共享任务端点；终态停止、刷新恢复、结果取数等规则见 specs/_common.md「异步任务与轮询协议」。
+
+### Transcript（转写原文）
+
+- transcript 必须与结构化记录分开保存、独立展示；初始机器转写原文在结构化内容编辑后仍须保留可查。
+- 后端返回说话人标签与时间戳时应展示；不确定或听不清的片段必须标注，禁止静默猜测补齐。
+- 允许人工校对 transcript 时，UI 必须区分机器原文与人工校订版。
+
+### 结构化记录
+
+- 用户必须能审阅、编辑、保存全部生成字段，之后方可定稿。
+- `started_at` 不得晚于 `ended_at`；定稿必填字段由后端业务规则定义。
+
+### 文书生成
+
+- 文书必须由已保存的结构化数据渲染，禁止用 transcript 原文顶替结构化记录。
+- 使用后端 Word 模板；已定稿记录重新生成必须保留历史版本（见 DATABASE.md `generated_documents`）。
+
+### AI 处理管线
+
+`音频 → 语音识别 → 说话人分离（技术可行时）→ 带置信度标注的 transcript → LLM 结构化抽取 → 输出校验 → 记录草稿`。通用 AI 约束见 specs/_common.md，组件边界见 AI_CONTEXT.md。
+
+## 业务规则（本功能独有）
+
+- 系统不得虚构说话人、陈述、时间、地点、身份或承认事项；听不清的语音必须标注为不确定或无法听清。
+- 说话人归属在用户确认前一律为草稿；无用户确认的证据时，说话人标签不得转为具体身份。
+- 源录音、transcript、结构化询问记录是三个独立产物，任一编辑不得静默改动其他两者。
+- 清理标点与口头语不得改变实质含义；不得把模糊陈述改写为更确定的陈述。
+- 结构化问答内容应尽可能可追溯到 transcript 证据。
+- 未经明确授权审阅不得定稿；已定稿记录不得被静默覆盖。
+
+### 错误处理（本功能特有）
+
+- 无可辨识语音：返回明确结果，禁止编造 transcript。
+- 转写部分失败：保留可用片段并标注缺口。
+- 说话人分离失败：生成带中性说话人标签的 transcript，不中断整体流程。
+- LLM 结构化失败：保留 transcript，允许重新生成。
+
+## 字段清单
+
+完整列定义见 DATABASE.md `interview_records` 表；本功能读写字段：
+
+- `title` 标题、`interviewee_name` 被询问人、`interviewer_names` 询问人列表、`location` 地点、`started_at` / `ended_at` 起止时间；
+- `transcript` 转写原文（独立保存，与结构化内容分离）；
+- `structured_content` 结构化内容（JSONB，核心为 `questions_and_answers` 问答列表）；
+- `status` 状态、`source_task_id` 来源 AI 任务。
+
+`status` 取值：`draft` / `processing` / `generated` / `reviewed` / `finalized` / `archived` / `failed`（定义权在 DATABASE.md）。
+
+## UI 结构
+
+页面按 `上传区 → 任务进度 → 录音 / Transcript 面板 → 结构化记录编辑器 → 保存 / 生成 / 下载` 组织；另有列表页承载记录查询。关键交互：拖拽与文件选择上传；上传与处理指示分离；录音元数据展示（支持时提供受保护回放）；transcript 带说话人与时间戳结构、不确定片段标记；结构化字段可编辑；未保存变更警告与放弃确认。transcript 与结构化记录不得在视觉上呈现为同一份内容。
+
+## API 端点
+
+- `POST /api/interview-record/generate` — 提交音频创建生成任务（multipart 表单：`audio` + `remarks`）。
+- `GET /api/interview-record` — 记录列表（分页）。
+- `GET /api/interview-record/{id}` — 详情（含 transcript 与 structured_content）。
+- `PUT /api/interview-record/{id}` — 保存审阅后的编辑。
+- `GET /api/interview-record/{id}/download` — 下载 Word 文书。
+- `GET /api/tasks/{task_id}` — 任务轮询。
+
+请求/响应 schema 见 API.md §4.3 与 §8。
+
+## 数据影响
+
+- `interview_records`：transcript、structured_content、元数据与状态。
+- `uploaded_files`：源录音与生成文件的元数据。
+- `ai_tasks`：转写与生成任务进度。
+- `generated_documents`：版本化产出文书。
+- `audit_logs`：访问、编辑、定稿、下载等关键操作留痕。
+
+若需片段级 transcript 编辑或溯源，须先在 DATABASE.md 中设计独立的 transcript 片段表，禁止隐藏在未文档化的 schema 中。
+
+## 验收标准
+
+- [ ] 一个合法音频创建一个生成任务；视频字段被拒绝并返回可读错误。
+- [ ] transcript 与结构化记录独立保存、独立展示；机器转写原文在校订后仍可查。
+- [ ] 不确定或听不清的片段可见，且不被 AI 编造补齐。
+- [ ] 用户可审阅、编辑并保存元数据与结构化内容，保存结果经后端持久化。
+- [ ] 生成文书与已保存的审阅内容一致；已定稿文书版本不被静默覆盖。
+- [ ] 列表页可分页查询记录；录音、transcript、记录与文书的访问均需后端授权。
+- [ ] 通用验收标准见 specs/_common.md。

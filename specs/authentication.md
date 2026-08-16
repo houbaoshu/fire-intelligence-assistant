@@ -1,230 +1,91 @@
-# Authentication
+# Authentication（认证）
 
-## 1. Purpose
+## 目的与范围
 
-Authentication identifies users before they access protected fire-inspection functions. The feature must provide a clear sign-in experience and establish an authenticated session that backend APIs can verify.
+在用户访问受保护的消防检查功能前确认其身份，提供清晰的登录体验，并建立后端 API 可校验的认证会话。
 
-## 2. Status and Scope
+范围（v1）：
 
-**Status:** Planned. No application code exists in the current repository, so implementation is not verified.
+- 邮箱 + 密码登录；
+- 后端开启注册时的用户注册；
+- 加载当前认证用户、保护业务页面与 API 请求；
+- 用 refresh_token 续期会话，处理过期或无效会话；
+- 退出登录（清除本地会话）。
 
-Current scope:
+范围外（v1）：社交登录、单点登录（SSO）、无密码认证、多因素认证（MFA）、组织邀请。
 
-- sign in with email and password;
-- register a user when registration is enabled;
-- load the current authenticated user;
-- protect business pages and API requests;
-- handle expired or invalid sessions;
-- sign out locally by clearing the authenticated session.
+## 角色与权限
 
-Out of scope for the first version:
+角色与权限通用规则见 specs/_common.md。本功能是所有角色的入口：认证只证明身份，授权仍由后端对每次受保护操作逐次校验。
 
-- social login;
-- single sign-on;
-- passwordless authentication;
-- multi-factor authentication;
-- organization invitations;
-- password reset until an API contract is added.
+## 功能要求
 
-## 3. Users and Permissions
+### 登录
 
-- **Inspector**: accesses assigned inspection features.
-- **Supervisor**: reviews inspection work according to backend permissions.
-- **Administrator**: manages protected administrative functions.
-- **Viewer**: has read-only access where permitted.
+- 表单只采集 email 与 password：email 必填且为合法规范化格式；password 必填，不得做 trim 或意外变换。
+- 提交 pending 期间禁用提交按钮，重复点击不得产生重复请求。
+- 登录成功：保存响应中的 `access_token` / `refresh_token` 与用户信息并建立会话，随后返回用户原本请求的保护路由。
+- 登录失败：保留 email 字段，清空或保护 password 字段；展示通用可读错误，不区分「邮箱不存在」与「密码错误」。
 
-Authentication proves identity. Authorization decisions must still be enforced by the backend.
+### 注册
 
-## 4. Goals
+- 仅当后端开启注册时提供入口；表单字段以 API.md 契约为准，后端确认前 UI 不得暗示注册成功。
+- 注册响应直接返回令牌，按登录成功处理。
+- 普通注册不得由客户端选择角色，尤不得选择特权角色。
 
-Users must be able to:
+### 会话与令牌
 
-- sign in with valid credentials;
-- understand why sign-in failed without seeing sensitive details;
-- remain signed in according to the configured session policy;
-- reach the originally requested page after successful sign-in;
-- sign out and prevent further authenticated requests;
-- see a clear session-expired message and sign in again.
+- 受保护 API 请求一律通过集中式 API client 携带 `Authorization: Bearer <access_token>`。
+- 应用启动与进入受保护路由时用 `GET /api/auth/me` 校验身份。
+- `access_token` 过期时先调用 `POST /api/auth/refresh` 续期；`refresh_token` 无效或过期时清除本地会话并跳转登录页。
+- 并发的多个 401 响应必须合并为一次连贯的「会话过期」流程，不得触发多个重定向。
+- 认证状态初始化完成前不得短暂闪现受保护内容；必须防止重定向循环。
+- 会话过期跳转登录时保留原请求目标，登录成功后恢复。
 
-## 5. User Workflow
+### 退出登录
 
-```text
-Open Protected Page
-  ↓
-Check Session
-  ├─ Valid → Load Page
-  └─ Missing / Expired
-          ↓
-       Sign In
-          ↓
-   Validate Credentials
-          ├─ Success → Return to Requested Page
-          └─ Failure → Show Recoverable Error
-```
+- 用户可退出登录：清除本地保存的 token 与用户信息，此后不得再携带旧凭证发起受保护请求。
 
-## 6. Functional Requirements
+## 业务规则（本功能独有）
 
-### Sign In
+- 后端是账号状态、角色与权限的唯一权威；已停用或已删除的用户不得获得可用会话。
+- 前端不得仅凭隐藏导航或按钮做授权，所有授权以后端校验为准（通用规则见 specs/_common.md，本功能为首要执行点）。
+- 错误信息不得造成账号枚举风险：不得透露某个邮箱是否已注册。
+- 注册密码强度策略以后端为准；前端校验只改善反馈，后端必须复核。
+- token 不得出现在 URL、分析事件或错误详情中；token 存储优先使用 HttpOnly cookie，否则必须显式记录存储方式与对应的 XSS 缓解措施。
 
-- The form must collect email and password.
-- Submission must be disabled while the request is pending.
-- Repeated clicks must not create duplicate requests.
-- Successful sign-in must establish the session and load the current user.
-- Failed sign-in must preserve the email field and clear or protect the password field.
-- The application should return the user to the intended protected route.
+## UI 结构
 
-### Registration
+登录页与注册页为独立页面，共用同一表单结构：带可见 label 的 email / password 输入 → 密码可见性切换 → 带 pending 态的提交按钮 → 字段级校验信息 → 向辅助技术播报的整体错误区；仅注册开启时展示登录 / 注册互链。支持键盘提交。
 
-- Registration is available only when the backend enables it.
-- The form must collect the minimum fields required by the approved API contract.
-- The UI must not imply that registration succeeded before the backend confirms it.
-- Role selection must not be client-controlled unless the backend explicitly authorizes it.
+必备状态：initial / validating / submitting / success redirect / invalid credentials / backend unavailable / session expired。后端不可用时保留表单并提供重试；触发限流时提示稍后再试；认证失败不得导致应用外壳崩溃。
 
-### Session Handling
+## API 端点
 
-- Protected API calls must include the bearer token through the centralized API client.
-- The application must verify identity with the current-user endpoint.
-- Invalid or expired credentials must clear the usable session and redirect to sign-in.
-- Concurrent unauthorized responses should result in one coherent session-expired flow.
+- `POST /api/auth/login`（公开）— 邮箱密码登录，响应含 `access_token` 与 `refresh_token`。
+- `POST /api/auth/register`（公开）— 注册并直接返回令牌。
+- `GET /api/auth/me` — 返回当前 token 对应的用户。
+- `POST /api/auth/refresh` — 用 `refresh_token` 换取新的 `access_token`。
 
-### Sign Out
+请求/响应 schema 均见 API.md §2，本文件不复制。
 
-- The first version may clear the local session because no logout endpoint is documented.
-- A server-side revocation endpoint must be added to `API.md` before it is relied upon.
+## 数据影响
 
-## 7. Business Rules
+涉及 DATABASE.md 中的表：
 
-- The backend is the source of truth for account status, role, and permissions.
-- An inactive or deleted user must not obtain a usable session.
-- The frontend must never grant access based only on hidden navigation items.
-- Users must not choose privileged roles during ordinary registration.
-- Error messages must not reveal whether an unrelated email address exists when doing so would create an account-enumeration risk.
+- `users`：账号身份与角色；
+- `user_profiles`：非认证类个人资料；
+- `audit_logs`：记录重要认证事件（登录成功 / 失败等），不得记录密码或 token。
 
-## 8. UI Requirements
+密码只存安全哈希，禁止明文存储（数据库级规则见 DATABASE.md）。
 
-The authentication interface must provide:
+## 验收标准
 
-- email and password inputs with visible labels;
-- show/hide password control;
-- submit button with pending state;
-- field-level validation;
-- general error region announced to assistive technology;
-- keyboard submission;
-- link between sign-in and registration only when registration is enabled;
-- professional, restrained styling consistent with the rest of the platform.
-
-Required states:
-
-- initial;
-- validating;
-- submitting;
-- success redirect;
-- invalid credentials;
-- backend unavailable;
-- session expired.
-
-## 9. API Requirements
-
-Approved contracts from `API.md`:
-
-```text
-POST /api/auth/login
-POST /api/auth/register
-GET  /api/auth/me
-```
-
-Login request:
-
-```json
-{
-  "email": "user@example.com",
-  "password": "user-provided-password"
-}
-```
-
-Login response:
-
-```json
-{
-  "access_token": "...",
-  "refresh_token": "..."
-}
-```
-
-The exact registration and current-user schemas must be added to `API.md` before implementation if they are not already represented in backend schemas.
-
-Proposed future contracts:
-
-```text
-POST /api/auth/refresh
-POST /api/auth/logout
-POST /api/auth/password-reset
-```
-
-These proposed endpoints are not part of the current approved API.
-
-## 10. Data Impact
-
-Relevant target tables from `DATABASE.md`:
-
-- `users` for account identity and role;
-- `user_profiles` for non-authentication profile data;
-- `audit_logs` for important authentication events.
-
-Passwords must be managed by the selected identity provider or stored only as secure password hashes in an authentication system. Plaintext passwords must never be stored.
-
-## 11. Validation
-
-- Email is required and must use a valid normalized format.
-- Password is required and must not be trimmed or transformed unexpectedly.
-- Registration password policy must come from backend requirements.
-- Client validation improves feedback but must be repeated by the backend.
-
-## 12. Error Handling
-
-- Invalid credentials: show a generic readable message.
-- Inactive account: show an appropriate access message when safe.
-- Backend unavailable: retain the form and offer retry.
-- Rate limit: explain that the user should wait before retrying.
-- Session expired: preserve the requested destination and require sign-in.
-- Malformed response: reject the session and show a recoverable error.
-
-## 13. Security and Privacy
-
-- Never place passwords or tokens in logs, URLs, analytics, or error details.
-- Do not hardcode tokens or authentication secrets.
-- Prefer secure, HTTP-only cookies when the chosen backend architecture supports them; otherwise document token storage and XSS mitigations explicitly.
-- Use HTTPS outside local development.
-- Authorization must be checked on every protected backend operation.
-- Authentication events should be auditable without recording secrets.
-
-## 14. Non-Functional Requirements
-
-- The sign-in form must be usable by keyboard and screen readers.
-- A pending request must provide immediate feedback.
-- Auth state initialization must avoid briefly displaying protected content.
-- Redirect loops must be prevented.
-- Authentication failures must not crash the application shell.
-
-## 15. Future Improvements
-
-- password reset;
-- refresh-token rotation and server-side revocation;
-- multi-factor authentication;
-- enterprise single sign-on;
-- organization invitations;
-- device and session management.
-
-## 16. Acceptance Criteria
-
-- [ ] Valid credentials establish an authenticated session.
-- [ ] Invalid credentials show a safe, readable error.
-- [ ] Protected pages redirect unauthenticated users to sign-in.
-- [ ] The originally requested route is restored after sign-in.
-- [ ] `GET /api/auth/me` determines the authenticated user.
-- [ ] Expired credentials produce one coherent re-authentication flow.
-- [ ] Signing out prevents subsequent protected requests from using the old local session.
-- [ ] Role and permission checks are enforced by the backend.
-- [ ] No password or token is logged or committed.
-- [ ] Loading, error, and keyboard-access states are verified.
-- [ ] Available lint, type, test, and build checks pass.
+- [ ] 有效凭证建立认证会话；无效凭证展示安全、可读的通用错误。
+- [ ] 未认证访问保护页面被重定向到登录页，登录成功后恢复原始请求路由。
+- [ ] `GET /api/auth/me` 判定当前用户；`access_token` 过期后经 `POST /api/auth/refresh` 透明续期。
+- [ ] `refresh_token` 失效时只产生一次连贯的重新认证流程。
+- [ ] 退出登录后旧会话不得再用于受保护请求。
+- [ ] 角色与权限校验由后端执行；普通注册无法获得特权角色。
+- [ ] 密码与 token 不出现在日志、URL 或错误详情中。
+- [ ] 键盘可用，加载与错误状态可感知；通用验收标准见 specs/_common.md。

@@ -1,426 +1,195 @@
 # AI_CONTEXT.md
 
-# AI Context
+# AI 组件职责与工作流
 
-This document describes how AI capabilities are organized in this project.
+本文档描述项目中 AI 能力的组织方式：组件职责边界与工作流步骤。
 
-It defines responsibilities, workflows, and design principles.
-
-It does **not** define specific model names.
-
-Model selection always comes from environment configuration.
+本文档**不**定义具体模型名称；模型选择一律来自环境变量配置。
 
 ---
 
-# AI Principles
+# AI 基本原则
 
-The backend owns all AI capabilities.
-
-The frontend is responsible only for:
-
-- User interaction
-- Uploading files
-- Displaying progress
-- Previewing results
-- Downloading generated documents
-
-Never implement AI inference in the frontend.
-
-Never duplicate backend AI logic.
+- 全部 AI 能力归后端所有，由后端统一编排整个 AI 工作流。
+- 前端只负责：用户交互、上传文件、展示进度、预览结果、下载生成的文档。
+- 整体管线：`User → Frontend → Backend → AI Components → Structured Data → Document / Response`
 
 ---
 
-# AI Pipeline
-
-User
-
-↓
-
-Frontend
-
-↓
-
-Backend
-
-↓
-
-AI Components
-
-↓
-
-Structured Data
-
-↓
-
-Document / Response
-
-The backend orchestrates the entire AI workflow.
-
----
-
-# AI Components
+# AI 组件
 
 ## Large Language Model (LLM)
 
-Responsibilities
+职责：
 
-- Question answering
-- Structured information extraction
-- Report generation
-- Document generation
-- Text summarization
-- JSON generation
+- 问答（Question answering）
+- 结构化信息抽取
+- 报告生成
+- 文档生成
+- 文本摘要
+- JSON 生成
 
-The LLM performs reasoning.
-
-It should not perform OCR or vector search.
-
----
+LLM 负责推理（reasoning）。LLM 不做 OCR，也不做向量检索。
 
 ## Vision Model
 
-Responsibilities
+职责：
 
-- Image understanding
-- Video understanding
-- Object recognition
-- Scene understanding
-- Fire inspection analysis
+- 图像理解
+- 视频理解
+- 目标识别
+- 场景理解
+- 消防检查分析
 
-Vision models interpret visual information.
-
-They do not generate final documents.
-
----
+Vision 模型负责解读视觉信息，不生成最终文档。
 
 ## OCR
 
-Responsibilities
+职责：
 
-- Extract text from images
-- Extract text from video frames
-- Preserve original content
+- 从图像中提取文字
+- 从视频帧中提取文字
+- 保留原始内容
 
-OCR only reads text.
-
-Reasoning belongs to the LLM.
-
----
+OCR 只负责读取文字；推理归 LLM。
 
 ## Speech Recognition
 
-Responsibilities
+职责：
 
-- Audio transcription
-- Video speech transcription
+- 音频转写
+- 视频语音转写
 
-The transcript is passed to the LLM for further processing.
-
----
+转写文本（transcript）交给 LLM 做进一步处理。
 
 ## Embedding Model
 
-Responsibilities
+职责：
 
-- Generate vector embeddings
+- 生成向量 embeddings
 
-Embedding models are only used for retrieval.
-
-Never use embeddings for generation.
-
----
+Embedding 模型仅用于检索（retrieval），不用于生成。
 
 ## Retriever
 
-Responsibilities
+职责：
 
-Retrieve relevant knowledge from the vector database.
-
----
+- 从 Vector Database 中检索相关知识。
 
 ## Reranker
 
-Responsibilities
+职责：
 
-Improve retrieval quality before context is sent to the LLM.
-
----
+- 在上下文送入 LLM 之前提升检索质量。
 
 ## Vector Database
 
-Responsibilities
-
-Store:
+职责，存储：
 
 - embeddings
 - chunk metadata
 - document references
 
-Do not store business logic here.
+不在这里存放业务逻辑。
 
 ---
 
-# Knowledge Base Workflow
+# 业务工作流
 
-Document
+## Knowledge Base Workflow
 
-↓
+索引管线：`Document → Parsing → Chunking → Embedding → Vector Database`
 
-Parsing
+查询管线：`Question → Retriever → Reranker → LLM → Answer`
 
-↓
+启用 RAG 时，LLM 必须尽可能基于检索到的上下文作答，避免幻觉（hallucination）。
 
-Chunking
+## Video Workflow
 
-↓
+输入：用户上传的视频。输出：结构化结果渲染成的文档。
 
-Embedding
+步骤：
 
-↓
+1. 前端上传视频，后端接收。
+2. Frame Extraction：抽帧。
+3. Vision：帧图像理解。
+4. OCR：帧内文字提取。
+5. LLM：综合分析，产出 Structured Result（JSON）。
+6. Template Rendering：套用模板生成文档。
+7. 前端提供 Download。
 
-Vector Database
+链路：`Upload → Frame Extraction → Vision → OCR → LLM → Structured Result → Template Rendering → Download`
 
-↓
+前端不处理视频本身。
 
-Retriever
+## Inspection Record Generation
 
-↓
+输入：Video。输出：Inspection Record（检查记录文档）。
 
-Reranker
+步骤：
 
-↓
+1. Video 经 Vision 分析画面、OCR 提取文字。
+2. LLM 综合产出 Structured JSON。
+3. User Review：用户确认/修改结构化结果。
+4. 套用 Word Template 生成文档。
+5. Download。
 
-LLM
+链路：`Video → Vision → OCR → LLM → Structured JSON → User Review → Word Template → Download`
 
-↓
+## Photo Report Generation
 
-Answer
+输入：Video。输出：Photo Report（照片报告文档）。
 
-When RAG is enabled:
+步骤：
 
-The LLM must answer from retrieved context whenever possible.
+1. Key Frame Extraction：从视频中提取关键帧。
+2. Vision：分析关键帧。
+3. LLM：为照片生成 Photo Captions，并产出 Structured JSON。
+4. 套用 Word Template 生成文档。
+5. Download。
 
-Avoid hallucinations.
+链路：`Video → Key Frame Extraction → Vision → LLM → Photo Captions → Structured JSON → Word Template → Download`
 
----
+## Interview Record Generation
 
-# Video Workflow
+输入：Video 或 Audio。输出：Interview Record（询问笔录文档）。
 
-Upload
+步骤：
 
-↓
+1. Speech Recognition：语音转写为 Transcript。
+2. LLM：整理为 Structured Interview（结构化笔录）。
+3. 套用 Word Template 生成文档。
+4. Download。
 
-Frame Extraction
+链路：`Speech Recognition → Transcript → LLM → Structured Interview → Word Template → Download`
 
-↓
+## Fire Regulation QA
 
-Vision
+输入：用户关于消防法规的 Question。输出：带 Citation 的 Answer。
 
-↓
+链路：`Question → Retriever → Reranker → LLM → Answer → Citation`
 
-OCR
-
-↓
-
-LLM
-
-↓
-
-Structured Result
-
-↓
-
-Template Rendering
-
-↓
-
-Download
-
-The frontend never processes videos.
-
----
-
-# Inspection Record Generation
-
-Input
-
-Video
-
-Output
-
-Inspection Record
-
-Workflow
-
-Video
-
-↓
-
-Vision
-
-↓
-
-OCR
-
-↓
-
-LLM
-
-↓
-
-Structured JSON
-
-↓
-
-User Review
-
-↓
-
-Word Template
-
-↓
-
-Download
-
----
-
-# Photo Report Generation
-
-Input
-
-Video
-
-Output
-
-Photo Report
-
-Workflow
-
-Video
-
-↓
-
-Key Frame Extraction
-
-↓
-
-Vision
-
-↓
-
-LLM
-
-↓
-
-Photo Captions
-
-↓
-
-Structured JSON
-
-↓
-
-Word Template
-
-↓
-
-Download
-
----
-
-# Interview Record Generation
-
-Input
-
-Video or Audio
-
-Workflow
-
-Speech Recognition
-
-↓
-
-Transcript
-
-↓
-
-LLM
-
-↓
-
-Structured Interview
-
-↓
-
-Word Template
-
-↓
-
-Download
-
----
-
-# Fire Regulation QA
-
-Workflow
-
-Question
-
-↓
-
-Retriever
-
-↓
-
-Reranker
-
-↓
-
-LLM
-
-↓
-
-Answer
-
-↓
-
-Citation
-
-Answers should include retrieved evidence whenever available.
+凡有可用检索证据时，答案必须附上检索到的依据。
 
 ---
 
 # Prompt Principles
 
-Prompts belong to the backend.
-
-Do not embed prompts inside frontend components.
-
-Keep prompts reusable.
-
-Prefer structured output.
-
-Intermediate AI outputs should use JSON whenever practical.
+- Prompt 归后端所有，不得嵌入前端组件。
+- Prompt 保持可复用。
+- 优先使用结构化输出；中间态 AI 输出在可行时一律使用 JSON。
 
 ---
 
 # Document Templates
 
-Templates are managed by the backend.
-
-Typical location:
-
-backend/data/templates/
-
-The frontend never generates Word documents.
+模板由后端管理，典型位置：`backend/data/templates/`。前端不生成 Word 文档。
 
 ---
 
 # Structured Output
 
-Whenever practical, AI should return structured JSON.
-
-Example
+在可行时，AI 一律返回结构化 JSON。示例：
 
 ```json
 {
@@ -431,15 +200,13 @@ Example
 }
 ```
 
-Generate documents from structured data rather than free-form text.
+文档由结构化数据生成，而不是由自由文本直接拼装。
 
 ---
 
 # Model Configuration
 
-Model providers and model names are configured through environment variables.
-
-Typical configuration includes:
+模型提供方与模型名称通过环境变量配置。典型配置项包括：
 
 - LLM
 - Vision
@@ -447,79 +214,17 @@ Typical configuration includes:
 - Embedding
 - Reranker
 
-Never hardcode model names in source code.
+模型名一律走环境变量，不在源代码中硬编码。
 
 ---
 
 # Error Handling
 
-AI services may fail.
+AI 服务可能失败，必须支持：
 
-Support:
+- retry（重试）
+- timeout（超时）
+- cancellation（取消）
+- partial failure（部分失败）
 
-- retry
-- timeout
-- cancellation
-- partial failure
-
-Never silently ignore AI errors.
-
----
-
-# Future AI Capabilities
-
-The architecture should support future extensions such as:
-
-- Agent
-- Multi-Agent
-- Workflow Engine
-- MCP
-- Tool Calling
-- Model Routing
-- Prompt Versioning
-- Evaluation Pipeline
-- Batch Processing
-
-These features should remain modular and loosely coupled.
-
----
-
-# Design Principles
-
-Keep responsibilities clearly separated.
-
-LLM
-
-↓
-
-Reasoning
-
-Vision
-
-↓
-
-Visual Understanding
-
-OCR
-
-↓
-
-Text Extraction
-
-Embedding
-
-↓
-
-Retrieval
-
-Backend
-
-↓
-
-AI Orchestration
-
-Frontend
-
-↓
-
-User Interface
+不得静默吞掉 AI 错误。

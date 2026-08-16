@@ -1,322 +1,138 @@
-# Intelligent Workflow and Task Management
-
-## 1. Purpose
-
-The Workflow feature coordinates long-running, multi-stage platform operations such as video analysis, transcription, knowledge indexing, and document generation. It provides consistent task state, retry behavior, cancellation, progress, and operational visibility without coupling business modules to one queue provider.
-
-## 2. Status and Scope
-
-**Status:** Planned for Roadmap Milestone 5. It must not be treated as implemented, and it should not be built before the foundation and core business workflows establish real requirements.
-
-Current target scope:
-
-- shared asynchronous task model;
-- backend task queue and workers;
-- task progress and stage updates;
-- idempotent submission where practical;
-- safe retry and cancellation semantics;
-- user-visible task center;
-- internal workflow composition for supported business pipelines;
-- bounded batch submission in a later increment of the milestone.
-
-Out of scope for the first workflow increment:
-
-- end-user visual workflow editor;
-- arbitrary user-authored code;
-- general-purpose automation platform;
-- multi-agent collaboration;
-- MCP orchestration;
-- plugin marketplace;
-- cross-tenant workflow sharing.
-
-## 3. Users and Permissions
-
-- **Inspector**: views and manages permitted tasks created for their work.
-- **Supervisor**: views team tasks when authorized and may retry supported failures.
-- **Administrator**: views operational task status and performs approved administrative recovery.
-- **System worker**: claims and updates tasks using service credentials and least privilege.
-
-Users must not view task inputs, results, or errors for records they cannot access.
-
-## 4. Goals
-
-The platform must be able to:
-
-- move long-running work out of request/response handlers;
-- represent task state consistently across modules;
-- recover safely from worker or provider failures;
-- prevent accidental duplicate final results;
-- show users understandable progress and errors;
-- evolve queue and worker providers without rewriting business workflows.
-
-## 5. Workflow Model
-
-```text
-Business API Request
-  ↓
-Validate Authorization and Input
-  ↓
-Create Business Draft and ai_task
-  ↓
-Enqueue Workflow
-  ↓
-Worker Claims Task
-  ↓
-Execute Bounded Stages
-  ↓
-Persist Structured Result and Progress
-  ↓
-Completed / Failed / Cancelled
-  ↓
-Frontend Refreshes the Related Business Record
-```
-
-Example document workflow:
-
-```text
-Upload
-  ↓
-Media Extraction
-  ↓
-Vision / OCR / Speech
-  ↓
-Structured Generation
-  ↓
-Validation
-  ↓
-Persist Draft
-  ↓
-User Review
-  ↓
-Document Rendering
-```
-
-## 6. Functional Requirements
-
-### Task Creation
-
-- Long-running business APIs must create one durable task record before returning success.
-- The response must include a `task_id`.
-- Task creation and required business-draft creation must be transactionally consistent where practical.
-- An idempotency key should prevent repeated client submissions from creating duplicate equivalent work.
+# Workflow（工作流与任务管理）
 
-### Task State
+## 1. 目的与范围
 
-Approved states from `DATABASE.md`:
-
-```text
-pending
-queued
-processing
-completed
-failed
-cancelled
-```
-
-Each task must expose safe values for:
+Workflow 协调平台上的耗时多阶段操作（video analysis、speech transcription、knowledge indexing、document generation），提供一致的任务状态、进度、重试、取消与可观测性，使业务模块不耦合任何具体队列 provider。
 
-- task type;
-- status;
-- progress from 0 to 100;
-- current stage;
-- safe result reference;
-- safe error code and message;
-- created, started, updated, and completion times when applicable.
+本功能是基础层：检查记录、拍照报告、询问记录、知识库四个功能的异步生成与索引都依赖本任务系统，必须先于或随这些功能一并建设。
 
-### Progress
+范围：
 
-- Progress must be monotonic within one attempt unless the contract explicitly resets for retry.
-- Stage names must be stable machine values with localized UI labels.
-- `completed` tasks must have a result or an explicit no-result outcome.
-- `failed` tasks must have a safe error code and message.
+- 共享异步任务模型、后端任务队列与 worker；
+- 任务进度与阶段更新；
+- 可行处的幂等提交；
+- 安全的 retry / cancel 语义；
+- 用户可见的任务中心；
+- 各业务流水线的内部工作流编排。
 
-### Retry
+不在范围内：
 
-- Retry eligibility depends on task type, state, and failure code.
-- A retry must create an auditable new attempt or reset behavior defined by the backend.
-- Retrying must not silently duplicate a finalized business record or generated document.
-- Non-retryable validation and authorization failures must be clear.
+- 面向最终用户的可视化工作流编辑器；
+- 任意用户自定义代码、通用自动化平台；
+- 多 agent 协作、MCP 编排、插件市场、跨租户工作流共享。
 
-### Cancellation
+## 2. 权限
 
-- Cancellation is best effort.
-- The backend must verify that the current stage is cancellable.
-- A cancel request must not mark a task cancelled before worker state is reconciled.
-- Completed work already committed must not be deleted implicitly by cancellation.
+角色与权限通用规则见 specs/_common.md。本功能特有的权限要求：
 
-### Task Center
+- 用户不得查看其无权访问记录的任务输入、结果与错误；
+- worker 使用最小权限的服务凭证认领与更新任务；
+- 管理性任务访问及 retry / cancel 操作必须记入审计。
 
-- Users should be able to list their authorized recent tasks once a list API is approved.
-- The UI should filter by status and task type when supported.
-- Each task should link to its related business record rather than expose raw task result data.
+## 3. 工作流模型
 
-## 7. Business Rules
+业务 API 请求 → 校验授权与输入 → 事务性创建业务草稿与 `ai_task` → 入队 → worker 认领 → 执行有界阶段 → 持久化结构化结果与进度 → 进入终态 → 前端刷新关联业务记录。
 
-- `ai_tasks` records operational execution; domain tables record business truth.
-- A completed task must not be the only storage location for a final business record.
-- Worker restarts must not cause silent duplicate finalization.
-- Every stage must define whether it is retryable and idempotent.
-- Partial outputs may be preserved for diagnostics or recovery but must not appear finalized.
-- Provider-specific status values must be normalized into platform states.
-- Users may cancel or retry only tasks they are authorized to manage.
-- A task timeout must not be confused with confirmed provider failure when state is unknown.
-- Batch work must have explicit size and concurrency limits.
+## 4. 功能要求
 
-## 8. UI Requirements
+### 任务创建
 
-Shared task UI must provide:
+- 耗时业务 API 必须在返回成功前创建一条持久化任务记录，响应携带 `task_id`。
+- 任务创建与必需的业务草稿创建在可行处保持事务一致。
+- 幂等键（idempotency key）防止客户端重复提交产生等效重复任务。
 
-- status label;
-- progress percentage when meaningful;
-- current localized stage;
-- elapsed or updated time;
-- safe error message;
-- retry when allowed;
-- cancel when allowed;
-- link to related record when available;
-- automatic stop of polling at terminal states.
+### 任务状态与进度
 
-A future task center should provide:
+- 任务状态、`task_type` 取值与响应字段以 API.md §8 为准；状态与类型枚举定义权在 DATABASE.md `ai_tasks` 表。
+- 阶段名（`current_stage`）必须是稳定的机器值，UI 只负责本地化展示标签。
+- retry / cancel 的状态约束与语义见 API.md §8，本文件不重复定义。
 
-```text
-Filters and Refresh
-  ↓
-Task List
-  ↓
-Task Detail / Related Record Link
-```
+### 任务中心
 
-Status must not rely on color alone. Screen readers must be informed of meaningful state changes without announcing every polling refresh.
+- 用户可列出自己有权查看的最近任务，并按状态与任务类型过滤。
+- 每个任务链接到关联业务记录，不向用户暴露原始任务结果数据。
 
-## 9. API Requirements
+## 5. 业务规则（本功能独有）
 
-Approved contract:
+- `ai_tasks` 记录执行过程，业务表记录业务事实；已完成任务不得是最终业务记录的唯一存储位置。
+- worker 重启不得导致静默重复定稿。
+- 每个阶段必须显式定义是否可重试、是否幂等。
+- 部分产出可为诊断或恢复保留，但不得在界面上表现为已定稿。
+- provider 私有状态值必须归一化为平台任务状态。
+- 状态未知时，任务超时不得当作 provider 已确认失败处理。
 
-```text
-GET /api/tasks/{task_id}
-```
+## 6. UI 结构
 
-Current response example:
+共享任务组件依次提供：状态标签 → 进度百分比（有意义时）→ 当前阶段本地化标签 → 耗时/更新时间 → 可读错误信息 → 允许时的 retry / cancel 操作 → 关联记录链接。
 
-```json
-{
-  "status": "processing",
-  "progress": 42,
-  "message": "..."
-}
-```
+任务中心：筛选与刷新 → 任务列表 → 任务详情 / 关联记录链接。
 
-Before implementing the full workflow milestone, update `API.md` with an explicit task schema and proposed contracts such as:
+- 轮询、终态停止与进度恢复规则见 specs/_common.md「异步任务与轮询协议」。
+- 状态不得仅靠颜色区分；屏幕阅读器只播报有意义的状态变化，不逐次播报轮询刷新。
 
-```text
-GET  /api/tasks
-POST /api/tasks/{task_id}/retry
-POST /api/tasks/{task_id}/cancel
-```
+## 7. API 端点
 
-These proposed endpoints are not currently approved.
-
-Every business generation API remains responsible for creating the appropriate business task. A generic task endpoint must not allow users to execute arbitrary internal workflows.
-
-## 10. Data Impact
-
-Primary target table:
-
-- `ai_tasks`.
-
-Related tables:
-
-- business records referenced by task type;
-- `generated_documents`;
-- `knowledge_index_jobs`;
-- `audit_logs`.
-
-Before adding attempts, dependencies, schedules, notifications, or batch parents, define explicit tables in `DATABASE.md`. Do not encode a growing workflow engine entirely inside undocumented `input_data` or `result_data` JSON.
-
-## 11. Backend Architecture Requirements
-
-- Routers create or query tasks through application services.
-- Business services define workflow semantics.
-- Queue providers remain behind a task-service abstraction.
-- Workers use the same validated configuration and storage/service interfaces as the API.
-- Task state changes use guarded transitions.
-- Long-running CPU or model work must not block normal API event loops.
-- Provider callbacks, polling, and retries must normalize into the same platform task model.
-
-Initial development may use a lightweight mechanism for short work, but production video and indexing tasks should use a durable queue and worker architecture.
-
-## 12. Validation
-
-- Task IDs must be valid and authorized.
-- Progress must be between 0 and 100.
-- Task type and status must use approved values.
-- State transitions must follow a backend-defined transition map.
-- Retry and cancellation must verify current state and task capability.
-- Batch size and concurrency must be bounded.
-- `input_data` must not contain raw sensitive files, tokens, or full document contents.
-
-## 13. Error Handling
-
-- Queue unavailable: do not report a queued task unless durable submission succeeded.
-- Worker crash: return or recover the task to a defined retryable state.
-- Provider timeout: record a safe code and preserve enough state for recovery.
-- Duplicate delivery: guarded/idempotent stages must prevent duplicate final output.
-- Progress update failure: task execution must not silently appear successful without final persistence.
-- Cancellation race: reconcile completed work and return the true terminal state.
-- Unknown state: surface an operational error instead of guessing completion.
-
-## 14. Security and Privacy
-
-- Task APIs require authentication and record-level authorization.
-- Workers use least-privilege service credentials.
-- Queue payloads must reference protected stored data instead of embedding large sensitive content.
-- Secrets, prompts, tokens, recordings, full transcripts, and full documents must not appear in task logs.
-- Administrative task access and retry/cancel actions must be audited.
-- Error messages returned to users must omit stack traces and provider secrets.
-
-## 15. Observability and Reliability
-
-Useful safe signals include:
-
-- queue wait time;
-- stage duration;
-- total task duration;
-- retry count;
-- failure code;
-- worker identity;
-- provider request status;
-- task type and terminal state.
-
-Requirements:
-
-- use request and task correlation identifiers;
-- define stuck-task detection and recovery;
-- bound retries with backoff;
-- use dead-letter or equivalent recovery for exhausted tasks;
-- document cleanup of abandoned temporary files;
-- keep operational logs free of sensitive business content.
-
-## 16. Future Improvements
-
-- server-sent events or WebSocket progress;
-- notification preferences;
-- batch parent/child tasks;
-- scheduled workflows;
-- visual workflow editor;
-- model routing;
-- agent and tool-calling workflows;
-- distributed tracing and advanced operational dashboards.
-
-## 17. Acceptance Criteria
-
-- [ ] Long-running business requests return a durable `task_id` without blocking until completion.
-- [ ] Task states and transitions use one documented platform model.
-- [ ] Frontend polling stops at completed, failed, or cancelled states.
-- [ ] Duplicate delivery or submission does not silently duplicate final business results.
-- [ ] Retry and cancellation are authorization-aware and state-aware.
-- [ ] Worker or provider failures produce safe actionable error codes and messages.
-- [ ] Business records remain the source of truth after task completion.
-- [ ] Queue payloads and logs contain no secrets or large sensitive content.
-- [ ] Stuck, exhausted, and abandoned tasks have documented recovery behavior.
-- [ ] Task UI is accessible and does not announce every polling refresh.
-- [ ] Available unit, integration, migration, load, and build checks pass.
+| 方法 | 路径 |
+| --- | --- |
+| GET | `/api/tasks/{task_id}` |
+| GET | `/api/tasks` |
+| POST | `/api/tasks/{task_id}/retry` |
+| POST | `/api/tasks/{task_id}/cancel` |
+
+请求/响应 schema 见 API.md §8。
+
+任务只能由各业务生成 API 在各自流程内创建；禁止提供可执行任意内部工作流的通用任务创建端点。
+
+## 8. 数据影响
+
+- 主表：`ai_tasks`（表结构定义权在 DATABASE.md）。
+- 关联：按 `task_type` 引用的各业务记录表、`generated_documents`、`knowledge_index_jobs`、`audit_logs`。
+- 引入 attempts、任务依赖、调度、通知等概念前，必须先在 DATABASE.md 定义显式表；禁止把工作流引擎编码进未文档化的 `input_data` / `result_data` JSON。
+
+## 9. 后端架构要求
+
+- router 一律经 service 创建或查询任务；业务 service 定义工作流语义；队列 provider 屏蔽在任务服务抽象之后，可整体替换。
+- worker 与 API 使用同一套经过校验的配置与存储/服务接口。
+- 任务状态变更必须经过受保护的转移，转移表（transition map）由后端统一定义。
+- 耗时 CPU 或模型推理工作不得阻塞 API 事件循环。
+- provider 回调、轮询与重试必须归一化到同一平台任务模型。
+- 开发期的短时任务可用轻量机制；生产环境的视频分析与知识库索引任务必须使用持久队列 + worker 架构。
+
+## 10. 校验与内容约束
+
+- `task_id` 必须合法且当前用户有权访问；retry / cancel 必须先校验当前状态与任务能力。
+- `input_data` 不得包含原始敏感文件、token 或完整文档内容；队列 payload 只引用受保护的存储数据，不内嵌大体积敏感内容。
+
+## 11. 故障处理（本功能特有）
+
+- 队列不可用：持久化入队未成功前不得报告任务已排队。
+- worker 崩溃：任务回收或恢复到定义好的可重试状态。
+- provider 超时：记录安全错误码并保留足够状态用于恢复。
+- 重复投递：受保护/幂等阶段必须防止重复产出最终结果。
+- 进度持久化失败：任务不得在未完成最终持久化时表现为成功。
+- 取消竞态：调和已提交的工作并返回真实终态。
+- 状态未知：暴露为运维错误，不得猜测为完成。
+
+## 12. 可观测性
+
+必须采集的安全信号：queue wait time、stage duration、任务总时长、retry 次数、failure code、worker identity、provider 请求状态、`task_type` 与终态。
+
+要求：
+
+- 日志与指标使用 request / task 关联 ID；
+- 定义卡住任务（stuck task）的检测与恢复；
+- retry 有次数上限并带 backoff；耗尽任务进入 dead-letter 或等价恢复流程；
+- 废弃临时文件有文档化的清理机制；
+- 运维日志不得包含敏感业务内容。
+
+## 13. 验收标准
+
+- [ ] 耗时业务请求不阻塞等待完成，返回持久 `task_id`。
+- [ ] 全平台只有一套文档化的任务状态与转移模型。
+- [ ] 重复投递或重复提交不会静默重复最终业务结果。
+- [ ] retry / cancel 同时感知授权与任务状态。
+- [ ] worker 或 provider 故障产出安全、可操作的错误码与错误信息。
+- [ ] 任务完成后业务记录仍是事实来源。
+- [ ] 队列 payload 与日志不含 secrets 或大体积敏感内容。
+- [ ] 卡住、耗尽、废弃的任务有文档化的恢复行为。
+- [ ] 任务 UI 满足可访问性要求，不逐次播报轮询刷新。

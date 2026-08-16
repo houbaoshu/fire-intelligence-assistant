@@ -1,471 +1,204 @@
 # AGENTS.md
 
-# Fire Intelligence Platform
+本仓库是一个 AI 驱动的消防检查系统。本文件是全仓库的编码规则权威文件。
 
-This repository is an AI-powered fire inspection system.
+## 现状说明
 
-The project is designed for fire safety inspection officers and provides intelligent document generation, knowledge retrieval, and inspection assistance.
+- frontend/ 已初始化为 TanStack Start + React + TypeScript + shadcn/ui 项目（Lovable 导入）。
+- backend/ 尚未初始化；实现前以 ARCHITECTURE.md 的目标架构为准。
 
-The target repository architecture is designed to contain:
+改动前必须先理解现有架构与实现。
 
-- Lovable frontend
-- FastAPI backend
-- AI services
-- RAG knowledge base
-- OCR
-- Vision models
-- Document generation
-- Database
-- Object storage
+## 文档单一信息源
 
-Current implementation status must be determined from the files present in the repository. At present, the repository contains project documentation and specifications only; application code has not been initialized.
+| 信息类别 | 权威文件 |
+| --- | --- |
+| 编码规则 | AGENTS.md（本文件） |
+| 架构与目录结构 | ARCHITECTURE.md |
+| 数据库表与枚举 | DATABASE.md |
+| API 契约 | API.md |
+| AI 组件与工作流 | AI_CONTEXT.md |
+| 项目概述与环境变量 | PROJECT.md |
+| 里程碑 | ROADMAP.md |
+| 功能规格 | specs/ 目录 |
+| 跨功能公共约定 | specs/_common.md |
 
-Always understand the existing architecture before making changes.
+规则：每类信息只在其权威文件中定义，其他文件必须引用而非复制。
 
----
+## 核心原则（Core Principles）
 
-# Core Principles
+写代码之前必须：
 
-Before writing code:
+1. 阅读现有实现。
+2. 复用现有模块。
+3. 避免重复逻辑。
+4. 保持改动聚焦。
+5. 尽可能保持向后兼容。
 
-1. Read the existing implementation.
-2. Reuse existing modules.
-3. Avoid duplicate logic.
-4. Keep changes focused.
-5. Preserve backward compatibility whenever possible.
+除非明确要求，禁止重写项目的大段代码。
 
-Never rewrite large portions of the project unless explicitly requested.
+## 技术栈（Project Architecture）
 
----
+技术栈见 ARCHITECTURE.md。
 
-# Project Architecture
+## 架构职责（Architecture Responsibilities）
 
-Frontend
+前后端职责划分见 ARCHITECTURE.md。
 
-- React
-- TypeScript
-- Vite
-- TailwindCSS
-- shadcn/ui
-- TanStack Query
+禁止将 AI 逻辑移入前端。
 
-Backend
+## 目录职责（Folder Responsibilities）
 
-- FastAPI
-- SQLAlchemy
-- Pydantic
-- Alembic
+前端（frontend/src/，TanStack Start 文件路由）：
 
-AI
+- routes/：页面与路由组件。
+- components/：可复用 UI。
+- hooks/：可复用 React hooks。
+- services/：HTTP 请求。
+- lib/：工具函数。
+- types/：共享 TypeScript 类型。
 
-- OpenAI-compatible APIs
-- Qwen
-- DeepSeek
-- GPT
-- Vision models
+注：router.tsx 为路由入口；routeTree.gen.ts 由框架自动生成，禁止手工编辑。
 
-Knowledge Base
+后端（backend/）：
 
-- Chroma
-- Local Embedding Models
+- routers/：HTTP API。
+- services/：业务逻辑。
+- models/：数据库模型。
+- schemas/：Pydantic 模型。
+- core/：配置。
+- utils/：工具。
+- rag/：知识库。
+- templates/：Word 模板。
 
-Storage
+禁止混淆各目录的职责。
 
-- PostgreSQL
-- Supabase Storage or Local Storage
+## API 规则
 
----
+- 前端禁止硬编码 API 响应，必须始终调用后端 API。
+- API Base URL 必须来自环境变量。
+- 禁止硬编码 secrets。
+- 禁止硬编码 tokens。
 
-# Architecture Responsibilities
+## AI 规则
 
-Frontend is responsible for:
+职责划分：
 
-- UI
-- Forms
-- Uploads
-- Progress
-- Preview
-- API calls
+- 大语言模型（LLM）生成文本。
+- 视觉模型（Vision Models）理解图片与视频。
+- OCR 提取文字。
+- RAG 检索知识。
+- Embedding 模型生成向量。
 
-Backend is responsible for:
+必须保持以上职责相互独立。
 
-- AI
-- OCR
-- RAG
-- Video analysis
-- Image analysis
-- Document generation
-- Business logic
-- Authentication
-- Database
+禁止实现假的 AI 逻辑。
 
-Never move AI logic into the frontend.
+## RAG 规则
 
----
+知识检索必须遵循以下流程：
 
-# Folder Responsibilities
+`Documents → Parsing → Chunking → Embedding → Vector Store → Retrieval → Reranking → LLM`
 
-Frontend
+- 禁止跳过检索环节。
+- RAG 启用时，禁止让 LLM 凭想象作答。
 
-pages/
+## Prompt 规则
 
-Page components.
+- Prompt 禁止嵌入 UI 组件内部，必须单独存放。
+- 保持 Prompt 可复用。
+- 避免重复的 Prompt。
 
-components/
+## 文书生成（Document Generation）
 
-Reusable UI.
+- Word 模板必须存放于 backend/data/templates/。
+- 生成的文书由后端产出。
+- 前端只负责：`Upload → Monitor progress → Preview → Download`。
+- 禁止在 React 中生成 Word 文档。
 
-hooks/
+## 视频处理（Video Processing）
 
-Reusable React hooks.
+- 视频处理属于后端职责，前端只上传文件。
+- 后端执行：`Frame extraction → Vision analysis → OCR → LLM reasoning → Document generation`。
 
-services/
+## 文件上传（File Upload）
 
-HTTP requests.
+- 必须校验：扩展名、文件大小。
+- 必须显示上传进度。
+- 必须显示可读的错误信息。
+- 禁止静默忽略失败。
 
-lib/
+## TypeScript
 
-Utilities.
+- 优先使用严格类型。
+- 避免使用 any。
+- 删除未使用的 import。
+- 保持构建干净。
 
-types/
+## Python
 
-Shared TypeScript types.
+- 使用类型标注（type hints）。
+- 使用 Pydantic。
+- 保持 router 轻薄。
+- 业务逻辑必须放在 services 中。
 
-Backend
+## 数据库（Database）
 
-routers/
+- 除非必要，禁止编写原生 SQL。
+- 必须使用 SQLAlchemy。
+- 必须创建 migration。
+- 禁止破坏现有 schema。
 
-HTTP APIs.
+## 环境变量（Environment Variables）
 
-services/
+- 配置必须从 .env 读取。
+- 禁止硬编码：API Keys、Passwords、URLs、Secrets。
 
-Business logic.
+## 日志（Logging）
 
-models/
+- 记录有用的信息。
+- 禁止记录：密码、Token、敏感文档。
 
-Database models.
+## UI
 
-schemas/
+- 使用现有组件。
+- 保持间距一致。
+- 必须有 loading 状态、empty 状态、error 状态。
+- 保持界面专业。
+- 避免花哨的动画。
 
-Pydantic models.
+## 性能（Performance）
 
-core/
+- 避免不必要的渲染与重复渲染。
+- 大页面必须懒加载（lazy load）。
+- 避免重复的 API 请求。
 
-Configuration.
+## 错误处理（Error Handling）
 
-utils/
+- 禁止吞掉异常。
+- 返回可读的错误信息。
+- 展示可操作的错误。
 
-Utilities.
+## 安全（Security）
 
-rag/
+- 必须校验所有上传的文件。
+- 必须转义不可信内容。
+- 禁止暴露后端 secrets。
+- 禁止信任客户端输入。
 
-Knowledge base.
+## 测试（Testing）
 
-templates/
+任务完成前必须依次执行：Build → Lint → Type Check，并修复所有错误。
 
-Word templates.
+构建失败时，禁止声称任务成功。
 
-Never mix responsibilities.
+## Git
 
----
-
-# API Rules
-
-Frontend never hardcodes API responses.
-
-Always call backend APIs.
-
-API Base URL must come from environment variables.
-
-Never hardcode secrets.
-
-Never hardcode tokens.
-
----
-
-# AI Rules
-
-Large Language Models generate text.
-
-Vision Models understand images and videos.
-
-OCR extracts text.
-
-RAG retrieves knowledge.
-
-Embedding models generate vectors.
-
-Keep these responsibilities separate.
-
-Never implement fake AI logic.
-
----
-
-# RAG Rules
-
-Knowledge retrieval should follow:
-
-Documents
-
-↓
-
-Parsing
-
-↓
-
-Chunking
-
-↓
-
-Embedding
-
-↓
-
-Vector Store
-
-↓
-
-Retrieval
-
-↓
-
-Reranking
-
-↓
-
-LLM
-
-Never skip retrieval.
-
-Never let the LLM answer from imagination when RAG is enabled.
-
----
-
-# Prompt Rules
-
-Prompts should not be embedded inside UI components.
-
-Store prompts separately.
-
-Keep prompts reusable.
-
-Avoid duplicate prompts.
-
----
-
-# Document Generation
-
-Word templates belong in
-
-backend/data/templates/
-
-Generated documents are produced by the backend.
-
-Frontend only:
-
-Upload
-
-↓
-
-Monitor progress
-
-↓
-
-Preview
-
-↓
-
-Download
-
-Never generate Word documents in React.
-
----
-
-# Video Processing
-
-Video processing belongs to backend.
-
-Frontend only uploads files.
-
-Backend performs:
-
-Frame extraction
-
-Vision analysis
-
-OCR
-
-LLM reasoning
-
-Document generation
-
----
-
-# File Upload
-
-Validate:
-
-Extension
-
-Size
-
-Display upload progress.
-
-Display readable errors.
-
-Never silently ignore failures.
-
----
-
-# TypeScript
-
-Prefer strict typing.
-
-Avoid any.
-
-Remove unused imports.
-
-Keep build clean.
-
----
-
-# Python
-
-Use type hints.
-
-Use Pydantic.
-
-Keep routers thin.
-
-Business logic belongs inside services.
-
----
-
-# Database
-
-Never write raw SQL unless necessary.
-
-Use SQLAlchemy.
-
-Create migrations.
-
-Never break existing schema.
-
----
-
-# Environment Variables
-
-Read configuration from:
-
-.env
-
-Never hardcode:
-
-API Keys
-
-Passwords
-
-URLs
-
-Secrets
-
----
-
-# Logging
-
-Log useful information.
-
-Never log:
-
-Passwords
-
-Tokens
-
-Sensitive documents
-
----
-
-# UI
-
-Use existing components.
-
-Keep spacing consistent.
-
-Use loading states.
-
-Use empty states.
-
-Use error states.
-
-Keep the interface professional.
-
-Avoid flashy animations.
-
----
-
-# Performance
-
-Avoid unnecessary rendering.
-
-Lazy load large pages.
-
-Avoid duplicate API requests.
-
-Avoid unnecessary re-renders.
-
----
-
-# Error Handling
-
-Never swallow exceptions.
-
-Return readable messages.
-
-Display actionable errors.
-
----
-
-# Security
-
-Validate all uploaded files.
-
-Escape untrusted content.
-
-Never expose backend secrets.
-
-Never trust client input.
-
----
-
-# Testing
-
-Before considering a task complete:
-
-Build
-
-Lint
-
-Type Check
-
-Fix errors.
-
-Do not claim success if build fails.
-
----
-
-# Git
-
-Commit small logical changes.
-
-Never rewrite published history.
-
-Avoid force push.
-
-Avoid rebasing pushed commits.
-
-Keep the repository buildable.
-
----
+- 提交小型、逻辑内聚的改动。
+- 禁止重写已发布的历史。
+- 避免 force push。
+- 避免 rebase 已推送的提交。
+- 保持仓库可构建。
 
 <!-- LOVABLE:BEGIN -->
 > [!IMPORTANT]
@@ -482,45 +215,35 @@ Keep the repository buildable.
 > Keep the branch in a working state.
 <!-- LOVABLE:END -->
 
----
+## 代码风格（Code Style）
 
-# Code Style
+- 优先修改现有代码。
+- 避免创建重复的组件。
+- 优先组合（composition）而非复制。
+- 保持函数短小。
+- 保持文件聚焦。
 
-Prefer modifying existing code.
+## 决策优先级（Decision Priority）
 
-Avoid creating duplicate components.
+实现功能时，按以下优先级决策：
 
-Prefer composition over duplication.
+1. 复用现有代码。
+2. 遵循项目架构。
+3. 保持代码简单。
+4. 保持类型安全。
+5. 保持模块独立。
 
-Keep functions small.
+## 执行流程（Execution）
 
-Keep files focused.
+接到开发任务时：
 
----
+1. 理解现有实现。
+2. 制定计划。
+3. 增量实现。
+4. 保持项目可构建。
+5. 验证构建。
+6. 说明重要改动。
 
-# Decision Priority
+不要做无关的重构。
 
-When implementing features:
-
-1. Reuse existing code.
-2. Follow project architecture.
-3. Keep code simple.
-4. Keep types safe.
-5. Keep modules independent.
-
----
-
-# Execution
-
-When given a development task:
-
-1. Understand the existing implementation.
-2. Create a plan.
-3. Implement incrementally.
-4. Keep the project buildable.
-5. Verify the build.
-6. Explain important changes.
-
-Do not make unrelated refactors.
-
-If uncertain, preserve the existing architecture.
+不确定时，保留现有架构。
