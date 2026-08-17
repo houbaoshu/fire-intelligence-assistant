@@ -37,7 +37,17 @@ export class ApiUnavailableError extends ApiError {
   }
 }
 
+/*
+ * Token 存储说明（specs/authentication.md 要求显式记录）：
+ * access_token 与 refresh_token 均存放于 localStorage（key 见下）。
+ * localStorage 无法设置 HttpOnly，存在 XSS 窃取风险，缓解措施：
+ * - token 只在本模块内读写，绝不进入 URL、日志、分析事件或错误详情；
+ * - 页面内容一律经 React 转义渲染，不注入不可信 HTML；
+ * - access_token 为短命令牌，泄露窗口由下方的 refresh 续期机制收窄。
+ * 后端若日后支持 HttpOnly cookie 会话，应优先迁移至该方案。
+ */
 const AUTH_STORAGE_KEY = "fip.auth.token";
+const REFRESH_STORAGE_KEY = "fip.auth.refresh_token";
 
 export function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -58,6 +68,102 @@ export function setAuthToken(token: string | null) {
   }
 }
 
+export function getRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(REFRESH_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setRefreshToken(token: string | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (token) window.localStorage.setItem(REFRESH_STORAGE_KEY, token);
+    else window.localStorage.removeItem(REFRESH_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function setAuthSession(session: { accessToken: string; refreshToken: string | null }) {
+  setAuthToken(session.accessToken);
+  setRefreshToken(session.refreshToken);
+}
+
+export function clearAuthSession() {
+  setAuthToken(null);
+  setRefreshToken(null);
+}
+
+export function hasAuthSession(): boolean {
+  return getAuthToken() !== null;
+}
+
+/**
+ * 会话过期监听：仅在 refresh_token 无效/过期（或缺失）导致会话被销毁时触发一次。
+ * 由 AuthProvider 注册，负责清理缓存并跳转登录页；api-client 自身不做路由跳转。
+ */
+type SessionExpiredListener = () => void;
+const sessionExpiredListeners = new Set<SessionExpiredListener>();
+
+export function onSessionExpired(listener: SessionExpiredListener): () => void {
+  sessionExpiredListeners.add(listener);
+  return () => {
+    sessionExpiredListeners.delete(listener);
+  };
+}
+
+function notifySessionExpired() {
+  for (const listener of sessionExpiredListeners) {
+    try {
+      listener();
+    } catch {
+      /* 监听器异常不影响会话清理 */
+    }
+  }
+}
+
+type RefreshTokenResponse = { access_token: string; token_type: string };
+
+// 共享的 in-flight refresh promise：并发的多个 401 合并为一次刷新 + 至多一次会话过期流程。
+let inFlightRefresh: Promise<boolean> | null = null;
+
+function refreshAccessToken(): Promise<boolean> {
+  inFlightRefresh ??= performRefresh().finally(() => {
+    inFlightRefresh = null;
+  });
+  return inFlightRefresh;
+}
+
+async function performRefresh(): Promise<boolean> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    expireSession();
+    return false;
+  }
+  try {
+    const res = await apiRequest<RefreshTokenResponse>("/api/auth/refresh", {
+      method: "POST",
+      body: { refresh_token: refreshToken },
+      anonymous: true,
+      skipAuthRefresh: true,
+    });
+    setAuthToken(res.access_token);
+    return true;
+  } catch (err) {
+    // 仅 refresh_token 无效/过期（401）才销毁会话；网络错误等保留会话，交由调用方展示可读错误。
+    if (err instanceof ApiError && err.status === 401) expireSession();
+    return false;
+  }
+}
+
+function expireSession() {
+  clearAuthSession();
+  notifySessionExpired();
+}
+
 export type RequestOptions = {
   method?: string;
   query?: Record<string, string | number | boolean | undefined | null>;
@@ -65,6 +171,8 @@ export type RequestOptions = {
   headers?: Record<string, string>;
   /** Bypass auth token even if present. Defaults false. */
   anonymous?: boolean;
+  /** Internal: do not attempt refresh-and-retry on 401 (used for the retry itself). */
+  skipAuthRefresh?: boolean;
   signal?: AbortSignal;
   /** Response type. Defaults to "json". */
   responseType?: "json" | "blob" | "text" | "none";
@@ -84,10 +192,7 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
   return url.toString();
 }
 
-export async function apiRequest<T = unknown>(
-  path: string,
-  opts: RequestOptions = {},
-): Promise<T> {
+export async function apiRequest<T = unknown>(path: string, opts: RequestOptions = {}): Promise<T> {
   const url = buildUrl(path, opts.query);
 
   const headers: Record<string, string> = { Accept: "application/json", ...(opts.headers ?? {}) };
@@ -118,6 +223,13 @@ export async function apiRequest<T = unknown>(
       "NETWORK_ERROR",
       err instanceof Error ? err.message : "Network request failed",
     );
+  }
+
+  // access_token 过期：先用 refresh_token 透明续期，再原样重试一次。
+  // 匿名请求（login/register/refresh）与已是重试的请求不进入此流程。
+  if (res.status === 401 && !opts.anonymous && !opts.skipAuthRefresh) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) return apiRequest<T>(path, { ...opts, skipAuthRefresh: true });
   }
 
   if (!res.ok) {

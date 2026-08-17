@@ -9,9 +9,16 @@ import {
   BookOpen,
   Settings as SettingsIcon,
   Flame,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 import { BackendStatusBadge } from "@/components/common/BackendStatus";
+import { LoadingState } from "@/components/common/StateViews";
+import { Button } from "@/components/ui/button";
+
+/** 公开页面：不渲染应用外壳与业务导航。 */
+const PUBLIC_PATHS = new Set(["/login", "/register"]);
 
 type NavItem = { to: string; label: string; icon: ReactNode };
 
@@ -27,6 +34,26 @@ const NAV: NavItem[] = [
 
 export function AppShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { user, isInitializing, isAuthenticated, logout } = useAuth();
+
+  // 登录 / 注册为独立公开页，不渲染应用外壳。
+  if (PUBLIC_PATHS.has(pathname)) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <Outlet />
+      </div>
+    );
+  }
+
+  // 会话初始化完成前不渲染受保护内容，避免闪现；
+  // 未认证时 __root 的 beforeLoad 会跳转登录页，此处仅作兜底占位。
+  if (isInitializing || !isAuthenticated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <LoadingState title="正在验证登录状态…" className="w-full max-w-md" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -42,8 +69,7 @@ export function AppShell() {
         </div>
         <nav className="flex-1 space-y-0.5 p-2">
           {NAV.map((item) => {
-            const active =
-              item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+            const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
             return (
               <Link
                 key={item.to}
@@ -51,8 +77,7 @@ export function AppShell() {
                 className={cn(
                   "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition",
                   "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  active &&
-                    "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
+                  active && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
                 )}
               >
                 {item.icon}
@@ -61,16 +86,47 @@ export function AppShell() {
             );
           })}
         </nav>
-        <div className="border-t border-sidebar-border p-3 text-[10px] text-muted-foreground">
-          v0.1 · Frontend Foundation
+        <div className="border-t border-sidebar-border p-3">
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-medium">{user?.full_name || user?.email}</div>
+              {user?.full_name && (
+                <div className="truncate text-[10px] text-muted-foreground">{user.email}</div>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={logout}
+              title="退出登录"
+              aria-label="退出登录"
+              className="h-8 w-8 shrink-0"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="mt-2 text-[10px] text-muted-foreground">v0.1 · Frontend Foundation</div>
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center justify-between gap-3 border-b border-border bg-card/50 px-4 backdrop-blur">
           <MobileNav pathname={pathname} />
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-3">
+            <span className="hidden text-xs text-muted-foreground sm:inline">
+              {user?.full_name || user?.email}
+            </span>
             <BackendStatusBadge compact />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={logout}
+              title="退出登录"
+              aria-label="退出登录"
+              className="h-8 w-8 md:hidden"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </header>
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -109,7 +165,7 @@ export function PageHeader({
   description,
   actions,
 }: {
-  title: string;
+  title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
 }) {
@@ -117,9 +173,7 @@ export function PageHeader({
     <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {description && (
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-        )}
+        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>

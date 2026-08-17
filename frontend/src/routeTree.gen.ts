@@ -11,11 +11,16 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as RegulationQaRouteImport } from './routes/regulation-qa'
-import { Route as PhotoReportRouteImport } from './routes/photo-report'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as KnowledgeBaseRouteImport } from './routes/knowledge-base'
-import { Route as InterviewRecordRouteImport } from './routes/interview-record'
-import { Route as InspectionRecordRouteImport } from './routes/inspection-record'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PhotoReportIndexRouteImport } from './routes/photo-report/index'
+import { Route as InterviewRecordIndexRouteImport } from './routes/interview-record/index'
+import { Route as InspectionRecordIndexRouteImport } from './routes/inspection-record/index'
+import { Route as PhotoReportIdRouteImport } from './routes/photo-report/$id'
+import { Route as InterviewRecordIdRouteImport } from './routes/interview-record/$id'
+import { Route as InspectionRecordIdRouteImport } from './routes/inspection-record/$id'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -27,9 +32,14 @@ const RegulationQaRoute = RegulationQaRouteImport.update({
   path: '/regulation-qa',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PhotoReportRoute = PhotoReportRouteImport.update({
-  id: '/photo-report',
-  path: '/photo-report',
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KnowledgeBaseRoute = KnowledgeBaseRouteImport.update({
@@ -37,88 +47,143 @@ const KnowledgeBaseRoute = KnowledgeBaseRouteImport.update({
   path: '/knowledge-base',
   getParentRoute: () => rootRouteImport,
 } as any)
-const InterviewRecordRoute = InterviewRecordRouteImport.update({
-  id: '/interview-record',
-  path: '/interview-record',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InspectionRecordRoute = InspectionRecordRouteImport.update({
-  id: '/inspection-record',
-  path: '/inspection-record',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PhotoReportIndexRoute = PhotoReportIndexRouteImport.update({
+  id: '/photo-report/',
+  path: '/photo-report/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InterviewRecordIndexRoute = InterviewRecordIndexRouteImport.update({
+  id: '/interview-record/',
+  path: '/interview-record/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InspectionRecordIndexRoute = InspectionRecordIndexRouteImport.update({
+  id: '/inspection-record/',
+  path: '/inspection-record/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PhotoReportIdRoute = PhotoReportIdRouteImport.update({
+  id: '/photo-report/$id',
+  path: '/photo-report/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InterviewRecordIdRoute = InterviewRecordIdRouteImport.update({
+  id: '/interview-record/$id',
+  path: '/interview-record/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InspectionRecordIdRoute = InspectionRecordIdRouteImport.update({
+  id: '/inspection-record/$id',
+  path: '/inspection-record/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/inspection-record': typeof InspectionRecordRoute
-  '/interview-record': typeof InterviewRecordRoute
   '/knowledge-base': typeof KnowledgeBaseRoute
-  '/photo-report': typeof PhotoReportRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/regulation-qa': typeof RegulationQaRoute
   '/settings': typeof SettingsRoute
+  '/inspection-record/$id': typeof InspectionRecordIdRoute
+  '/interview-record/$id': typeof InterviewRecordIdRoute
+  '/photo-report/$id': typeof PhotoReportIdRoute
+  '/inspection-record/': typeof InspectionRecordIndexRoute
+  '/interview-record/': typeof InterviewRecordIndexRoute
+  '/photo-report/': typeof PhotoReportIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/inspection-record': typeof InspectionRecordRoute
-  '/interview-record': typeof InterviewRecordRoute
   '/knowledge-base': typeof KnowledgeBaseRoute
-  '/photo-report': typeof PhotoReportRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/regulation-qa': typeof RegulationQaRoute
   '/settings': typeof SettingsRoute
+  '/inspection-record/$id': typeof InspectionRecordIdRoute
+  '/interview-record/$id': typeof InterviewRecordIdRoute
+  '/photo-report/$id': typeof PhotoReportIdRoute
+  '/inspection-record': typeof InspectionRecordIndexRoute
+  '/interview-record': typeof InterviewRecordIndexRoute
+  '/photo-report': typeof PhotoReportIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/inspection-record': typeof InspectionRecordRoute
-  '/interview-record': typeof InterviewRecordRoute
   '/knowledge-base': typeof KnowledgeBaseRoute
-  '/photo-report': typeof PhotoReportRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/regulation-qa': typeof RegulationQaRoute
   '/settings': typeof SettingsRoute
+  '/inspection-record/$id': typeof InspectionRecordIdRoute
+  '/interview-record/$id': typeof InterviewRecordIdRoute
+  '/photo-report/$id': typeof PhotoReportIdRoute
+  '/inspection-record/': typeof InspectionRecordIndexRoute
+  '/interview-record/': typeof InterviewRecordIndexRoute
+  '/photo-report/': typeof PhotoReportIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/inspection-record'
-    | '/interview-record'
     | '/knowledge-base'
-    | '/photo-report'
+    | '/login'
+    | '/register'
     | '/regulation-qa'
     | '/settings'
+    | '/inspection-record/$id'
+    | '/interview-record/$id'
+    | '/photo-report/$id'
+    | '/inspection-record/'
+    | '/interview-record/'
+    | '/photo-report/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/inspection-record'
-    | '/interview-record'
     | '/knowledge-base'
-    | '/photo-report'
+    | '/login'
+    | '/register'
     | '/regulation-qa'
     | '/settings'
+    | '/inspection-record/$id'
+    | '/interview-record/$id'
+    | '/photo-report/$id'
+    | '/inspection-record'
+    | '/interview-record'
+    | '/photo-report'
   id:
     | '__root__'
     | '/'
-    | '/inspection-record'
-    | '/interview-record'
     | '/knowledge-base'
-    | '/photo-report'
+    | '/login'
+    | '/register'
     | '/regulation-qa'
     | '/settings'
+    | '/inspection-record/$id'
+    | '/interview-record/$id'
+    | '/photo-report/$id'
+    | '/inspection-record/'
+    | '/interview-record/'
+    | '/photo-report/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  InspectionRecordRoute: typeof InspectionRecordRoute
-  InterviewRecordRoute: typeof InterviewRecordRoute
   KnowledgeBaseRoute: typeof KnowledgeBaseRoute
-  PhotoReportRoute: typeof PhotoReportRoute
+  LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
   RegulationQaRoute: typeof RegulationQaRoute
   SettingsRoute: typeof SettingsRoute
+  InspectionRecordIdRoute: typeof InspectionRecordIdRoute
+  InterviewRecordIdRoute: typeof InterviewRecordIdRoute
+  PhotoReportIdRoute: typeof PhotoReportIdRoute
+  InspectionRecordIndexRoute: typeof InspectionRecordIndexRoute
+  InterviewRecordIndexRoute: typeof InterviewRecordIndexRoute
+  PhotoReportIndexRoute: typeof PhotoReportIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -137,11 +202,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegulationQaRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/photo-report': {
-      id: '/photo-report'
-      path: '/photo-report'
-      fullPath: '/photo-report'
-      preLoaderRoute: typeof PhotoReportRouteImport
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/knowledge-base': {
@@ -151,20 +223,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KnowledgeBaseRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/interview-record': {
-      id: '/interview-record'
-      path: '/interview-record'
-      fullPath: '/interview-record'
-      preLoaderRoute: typeof InterviewRecordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/inspection-record': {
-      id: '/inspection-record'
-      path: '/inspection-record'
-      fullPath: '/inspection-record'
-      preLoaderRoute: typeof InspectionRecordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -172,18 +230,75 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/photo-report/': {
+      id: '/photo-report/'
+      path: '/photo-report'
+      fullPath: '/photo-report/'
+      preLoaderRoute: typeof PhotoReportIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/interview-record/': {
+      id: '/interview-record/'
+      path: '/interview-record'
+      fullPath: '/interview-record/'
+      preLoaderRoute: typeof InterviewRecordIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inspection-record/': {
+      id: '/inspection-record/'
+      path: '/inspection-record'
+      fullPath: '/inspection-record/'
+      preLoaderRoute: typeof InspectionRecordIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/photo-report/$id': {
+      id: '/photo-report/$id'
+      path: '/photo-report/$id'
+      fullPath: '/photo-report/$id'
+      preLoaderRoute: typeof PhotoReportIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/interview-record/$id': {
+      id: '/interview-record/$id'
+      path: '/interview-record/$id'
+      fullPath: '/interview-record/$id'
+      preLoaderRoute: typeof InterviewRecordIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inspection-record/$id': {
+      id: '/inspection-record/$id'
+      path: '/inspection-record/$id'
+      fullPath: '/inspection-record/$id'
+      preLoaderRoute: typeof InspectionRecordIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  InspectionRecordRoute: InspectionRecordRoute,
-  InterviewRecordRoute: InterviewRecordRoute,
   KnowledgeBaseRoute: KnowledgeBaseRoute,
-  PhotoReportRoute: PhotoReportRoute,
+  LoginRoute: LoginRoute,
+  RegisterRoute: RegisterRoute,
   RegulationQaRoute: RegulationQaRoute,
   SettingsRoute: SettingsRoute,
+  InspectionRecordIdRoute: InspectionRecordIdRoute,
+  InterviewRecordIdRoute: InterviewRecordIdRoute,
+  PhotoReportIdRoute: PhotoReportIdRoute,
+  InspectionRecordIndexRoute: InspectionRecordIndexRoute,
+  InterviewRecordIndexRoute: InterviewRecordIndexRoute,
+  PhotoReportIndexRoute: PhotoReportIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

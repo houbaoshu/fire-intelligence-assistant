@@ -142,3 +142,16 @@
     color: var(--color-foreground);
   }
 }
+
+/* 本地偏好(specs/settings.md):减弱动效与紧凑密度,由 src/lib/preferences.ts 应用到根元素。 */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+:root[data-density="compact"] main {
+  padding: 0.75rem;
+}

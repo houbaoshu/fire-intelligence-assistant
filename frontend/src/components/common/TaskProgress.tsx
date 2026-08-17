@@ -1,19 +1,12 @@
+import { useEffect } from "react";
 import { CheckCircle2, XCircle, Loader2, Clock, Ban } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useTaskProgress } from "@/hooks/useTaskProgress";
-import type { TaskState, TaskStatus } from "@/lib/services/tasks";
+import { TASK_STATUS_LABELS, labelOf } from "@/lib/labels";
+import type { Task, TaskStatus } from "@/lib/services/tasks";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
-
-const LABELS: Record<TaskStatus, string> = {
-  pending: "等待中",
-  queued: "已排队",
-  processing: "处理中",
-  completed: "已完成",
-  failed: "失败",
-  cancelled: "已取消",
-};
 
 function StatusIcon({ status }: { status: TaskStatus }) {
   const cls = "h-4 w-4";
@@ -34,8 +27,8 @@ function StatusIcon({ status }: { status: TaskStatus }) {
 export type TaskProgressProps = {
   taskId: string | null | undefined;
   intervalMs?: number;
-  onComplete?: (task: TaskState) => void;
-  onFail?: (task: TaskState) => void;
+  onComplete?: (task: Task) => void;
+  onFail?: (task: Task) => void;
   className?: string;
   footer?: ReactNode;
 };
@@ -50,11 +43,15 @@ export function TaskProgress({
 }: TaskProgressProps) {
   const { task, error, isLoading } = useTaskProgress(taskId, { intervalMs });
 
-  // Fire callbacks based on terminal state (idempotent since polling stops).
-  if (task) {
-    if (task.status === "completed") onComplete?.(task);
-    if (task.status === "failed") onFail?.(task);
-  }
+  // 终态回调在 effect 中触发(轮询停止后幂等),允许回调内安全执行导航等副作用。
+  const status = task?.status;
+  useEffect(() => {
+    if (!task) return;
+    if (status === "completed") onComplete?.(task);
+    if (status === "failed") onFail?.(task);
+    // 仅需在任务进入终态时触发一次;回调引用变化不重复触发。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, task?.task_id]);
 
   if (!taskId) return null;
 
@@ -62,10 +59,19 @@ export function TaskProgress({
     <div className={cn("rounded-lg border border-border bg-card p-4", className)}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          {task ? <StatusIcon status={task.status} /> : <Loader2 className="h-4 w-4 animate-spin" />}
+          {task ? (
+            <StatusIcon status={task.status} />
+          ) : (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          )}
           <div className="text-sm font-medium">
-            {task ? LABELS[task.status] ?? task.status : "查询任务状态…"}
+            {task ? labelOf(TASK_STATUS_LABELS, task.status) : "查询任务状态…"}
           </div>
+          {task?.current_stage && (
+            <Badge variant="outline" className="text-[10px]">
+              当前阶段:{task.current_stage}
+            </Badge>
+          )}
         </div>
         <Badge variant="outline" className="font-mono text-[10px]">
           {taskId.slice(0, 8)}
@@ -79,8 +85,8 @@ export function TaskProgress({
         </div>
       )}
 
-      {task?.message && (
-        <div className="mt-2 text-xs text-muted-foreground">{task.message}</div>
+      {task?.status === "failed" && task.error_message && (
+        <div className="mt-2 text-xs text-destructive">失败原因:{task.error_message}</div>
       )}
 
       {error && (
