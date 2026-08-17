@@ -571,19 +571,110 @@ document.download
 
 以下表可在需要时增加：
 
-- roles
-- permissions
-- role_permissions
-- user_roles
-- organizations
-- departments
 - inspection_units
 - model_configurations
 - prompt_versions
 - evaluation_results
 - notifications
 
-在对应功能被需要之前，不要创建这些表。
+企业管理的 `organizations` / `departments` / `permissions` / `role_permissions` 已在 Milestone 6 落地为核心表,定义见下方。其余表在对应功能被需要之前不要创建。
+
+# 表：organizations（Milestone 6）
+
+| 列名 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| id | UUID | 是 | 主键 |
+| name | VARCHAR | 是 | 组织名称 |
+| code | VARCHAR | 是 | 组织编码,唯一 |
+| description | VARCHAR | 否 | 描述 |
+| created_at / updated_at / deleted_at | TIMESTAMP | - | 通用字段 |
+
+# 表：departments（Milestone 6）
+
+| 列名 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| id | UUID | 是 | 主键 |
+| organization_id | UUID | 是 | 引用 organizations.id |
+| name | VARCHAR | 是 | 部门名称 |
+| parent_id | UUID | 否 | 上级部门(预留层级) |
+| created_at / updated_at / deleted_at | TIMESTAMP | - | 通用字段 |
+
+# 表：permissions / role_permissions（Milestone 6）
+
+权限以角色(`users.role`)为基准,权限码通过 `role_permissions` 关联到角色。默认权限矩阵在 `app/services/permission_service.py` 维护(幂等种子)。
+
+- `permissions`：`code`(唯一)、`name`、`description`。
+- `role_permissions`：`role`(users.role 取值)、`permission_code`,联合唯一。
+
+# 用户归属（Milestone 6）
+
+`users` 表新增可空列：`organization_id`(引用 organizations.id)、`department_id`(引用 departments.id)。
+
+统计范围规则：admin=system；supervisor=organization(按记录创建者所属组织过滤)；inspector/viewer=personal。未分配组织的 supervisor 默认查看全部。
+
+
+
+
+# 表：prompt_versions（Milestone 8）
+
+版本化 Prompt 目录,初始种子来自 `app/prompts/*.py`,管理员可编辑。
+
+| 列名 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| id | UUID | 是 | 主键 |
+| key | VARCHAR | 是 | 稳定标识(如 qa.QA_SYSTEM) |
+| name / description | VARCHAR / TEXT | 否 | 展示信息 |
+| content | TEXT | 是 | Prompt 文本 |
+| version | INTEGER | 是 | 版本号,编辑时递增 |
+| is_active | BOOLEAN | 是 | 是否生效(仅一个生效版本) |
+| created_by | UUID | 否 | 编辑者 |
+
+# 表：model_configurations（Milestone 8）
+
+按能力类型配置的模型,模型路由优先使用生效配置,回退到环境变量。
+
+| 列名 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| id | UUID | 是 | 主键 |
+| name | VARCHAR | 是 | 配置名称 |
+| kind | VARCHAR | 是 | llm / vision / ocr / speech / embedding / reranker |
+| provider | VARCHAR | 是 | 提供商 |
+| model_name | VARCHAR | 是 | 模型名 |
+| base_url | VARCHAR | 否 | 覆盖 Base URL |
+| api_key_ref | VARCHAR | 否 | 密钥环境变量名(不存密钥本身) |
+| is_active / priority | BOOLEAN / INTEGER | 是 | 生效标记与优先级 |
+
+# 表：evaluation_results（Milestone 8）
+
+评估运行结果(真实调用 RAG+LLM 管线后按规则计分)。
+
+| 列名 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| id | UUID | 是 | 主键 |
+| name / status | VARCHAR | 是 | 评估名称与状态 |
+| total_questions / passed | INTEGER | 是 | 问题总数与通过数 |
+| details | JSONB | 否 | 逐题检查明细 |
+| created_by | UUID | 否 | 运行者 |
+
+# 表：plugins（Milestone 8）
+
+服务端插件注册表。插件以 `app.plugins.builtin.*` 模块形式提供 PLUGIN 契约(名称/版本/钩子),在平台定义点执行。
+
+| 列名 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| id | UUID | 是 | 主键 |
+| name | VARCHAR | 是 | 插件名,唯一 |
+| version / description | VARCHAR / TEXT | 否 | 版本与说明 |
+| entry_point | VARCHAR | 是 | 加载入口 |
+| enabled | BOOLEAN | 是 | 是否启用 |
+
+# MCP（Milestone 8）
+
+MCP 服务器通过环境变量 `MCP_SERVERS`(JSON 数组)配置,客户端实现于 `app/mcp/client.py`(HTTP JSON-RPC),工具以 Agent 工具形式暴露。
+
+# Agent（Milestone 8）
+
+Agent 基于 OpenAI 兼容 function calling(`app/services/ai/agent.py`),内置工具:知识检索、统计摘要。多智能体编排由 AgentOrchestrator 实现,任务经规划器拆解执行。
 
 # 索引
 

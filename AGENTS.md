@@ -5,7 +5,7 @@
 ## 现状说明
 
 - frontend/ 已初始化为 TanStack Start + React + TypeScript + shadcn/ui 项目（Lovable 导入）。
-- backend/ 尚未初始化；实现前以 ARCHITECTURE.md 的目标架构为准。
+- backend/ 尚未初始化；实现前以 docs/ARCHITECTURE.md 的目标架构为准。
 
 改动前必须先理解现有架构与实现。
 
@@ -14,12 +14,12 @@
 | 信息类别 | 权威文件 |
 | --- | --- |
 | 编码规则 | AGENTS.md（本文件） |
-| 架构与目录结构 | ARCHITECTURE.md |
-| 数据库表与枚举 | DATABASE.md |
-| API 契约 | API.md |
-| AI 组件与工作流 | AI_CONTEXT.md |
-| 项目概述与环境变量 | PROJECT.md |
-| 里程碑 | ROADMAP.md |
+| 架构与目录结构 | docs/ARCHITECTURE.md |
+| 数据库表与枚举 | docs/DATABASE.md |
+| API 契约 | docs/API.md |
+| AI 组件与工作流 | docs/AI_CONTEXT.md |
+| 项目概述与环境变量 | docs/PROJECT.md |
+| 里程碑 | docs/ROADMAP.md |
 | 功能规格 | specs/ 目录 |
 | 跨功能公共约定 | specs/_common.md |
 
@@ -39,11 +39,11 @@
 
 ## 技术栈（Project Architecture）
 
-技术栈见 ARCHITECTURE.md。
+技术栈见 docs/ARCHITECTURE.md。
 
 ## 架构职责（Architecture Responsibilities）
 
-前后端职责划分见 ARCHITECTURE.md。
+前后端职责划分见 docs/ARCHITECTURE.md。
 
 禁止将 AI 逻辑移入前端。
 
