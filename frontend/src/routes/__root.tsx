@@ -4,6 +4,7 @@ import {
   createRootRouteWithContext,
   useRouter,
   HeadContent,
+  Outlet,
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
@@ -128,6 +129,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <Outlet />
         <Toaster />
       </AuthProvider>
     </QueryClientProvider>
