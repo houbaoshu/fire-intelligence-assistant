@@ -6,6 +6,7 @@ from .helpers import (
     auth_headers,
     generate_inspection,
     make_admin,
+    make_role,
     register,
     wait_task,
 )
@@ -160,6 +161,8 @@ def test_retry_finalized_record_task_returns_409(client):
     # 找到关联记录并定稿
     resp = client.get("/api/inspection-record", headers=auth_headers(tokens))
     record_id = resp.json()["items"][0]["id"]
+    # 定稿需 record.finalize 权限（M6：supervisor/admin）
+    make_role(tokens["user"]["id"], "supervisor")
     resp = client.put(
         f"/api/inspection-record/{record_id}",
         headers=auth_headers(tokens),

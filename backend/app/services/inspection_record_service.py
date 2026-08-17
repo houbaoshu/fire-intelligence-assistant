@@ -35,6 +35,7 @@ class InspectionRecordService(RecordServiceBase):
         data: bytes,
         remarks: str | None,
         request_id: str | None = None,
+        idempotency_key: str | None = None,
     ) -> AITask:
         record = InspectionRecord(status="processing", created_by=user.id)
         return self._start_generation(
@@ -47,13 +48,14 @@ class InspectionRecordService(RecordServiceBase):
             record=record,
             remarks=remarks,
             request_id=request_id,
+            idempotency_key=idempotency_key,
         )
 
     def list(
         self, user: User, status: str | None, page: int, page_size: int
     ) -> Page[InspectionRecordListItem]:
         rows, total = self.records.list_scoped(
-            user.id, self._is_admin(user), status, page, page_size
+            self._visible_creator_ids(user), status, page, page_size
         )
         return Page(
             items=[self._to_list_item(r) for r in rows],
@@ -75,6 +77,9 @@ class InspectionRecordService(RecordServiceBase):
     ) -> InspectionRecordDetail:
         record = self._get_or_404(self.records, record_id, user, "检查记录")
         self._guard_not_finalized(record)
+        self._check_update_permission(
+            user, record, payload.status if "status" in payload.model_fields_set else None
+        )
 
         data = payload.model_dump(exclude_unset=True)
         new_status = data.pop("status", None)

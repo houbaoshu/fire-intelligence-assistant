@@ -3,7 +3,7 @@
 import io
 import uuid
 
-from .helpers import FAKE_MP4, FAKE_PNG, auth_headers, register, wait_task
+from .helpers import FAKE_MP4, FAKE_PNG, auth_headers, make_role, register, wait_task
 
 BASE = "/api/photo-report"
 
@@ -174,6 +174,8 @@ def test_finalized_report_update_returns_409(client):
     tokens = register(client)
     _generate(client, tokens)
     report_id = _report_id(client, tokens)
+    # 定稿需 record.finalize 权限（M6：supervisor/admin）
+    make_role(tokens["user"]["id"], "supervisor")
     resp = client.put(
         f"{BASE}/{report_id}", headers=auth_headers(tokens), json={"status": "finalized"}
     )

@@ -16,6 +16,8 @@ from app.models import (  # noqa: F401
     inspection,
     interview,
     knowledge,
+    notification,
+    organization,
     photo_report,
     uploaded_file,
     user,

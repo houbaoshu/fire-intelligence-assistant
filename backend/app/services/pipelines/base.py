@@ -42,11 +42,14 @@ class PipelineResult:
 
     - ``fields``：业务记录列更新（键必须为该记录模型的真实列名）。
     - ``items`` / ``images``：子记录整体替换列表（dict 列表，键为子表列名）。
+    - ``warnings``：部分失败的降级说明（单帧分析失败等），写入任务
+      ``result_data.warnings``，不阻断任务。
     """
 
     fields: dict[str, Any] = field(default_factory=dict)
     items: list[dict[str, Any]] | None = None
     images: list[dict[str, Any]] | None = None
+    warnings: list[str] = field(default_factory=list)
 
 
 class GenerationPipeline:

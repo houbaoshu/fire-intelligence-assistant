@@ -2,7 +2,7 @@
 
 import uuid
 
-from .helpers import auth_headers, generate_inspection, make_admin, register, wait_task
+from .helpers import auth_headers, generate_inspection, make_admin, make_role, register, wait_task
 
 BASE = "/api/inspection-record"
 
@@ -127,6 +127,8 @@ def test_invalid_item_type_rejected(client):
 def test_finalized_record_update_returns_409(client):
     tokens = register(client)
     record_id = _failed_record_id(client, tokens)
+    # 定稿需 record.finalize 权限（M6：supervisor/admin，specs/_common.md）
+    make_role(tokens["user"]["id"], "supervisor")
     resp = client.put(
         f"{BASE}/{record_id}", headers=auth_headers(tokens), json={"status": "finalized"}
     )

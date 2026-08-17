@@ -57,5 +57,18 @@ def require_roles(*roles: str):
     return checker
 
 
+def require_permission(code: str):
+    """权限码校验依赖工厂（M6）：按当前用户角色查 role_permissions 生效矩阵。"""
+
+    def checker(session: DbSession, current_user: CurrentUser) -> User:
+        from app.services.permission_service import PermissionService
+
+        if not PermissionService(session).has_permission(current_user.role, code):
+            raise forbidden("当前角色无权执行此操作")
+        return current_user
+
+    return checker
+
+
 def get_request_id(request: Request) -> str | None:
     return getattr(request.state, "request_id", None)

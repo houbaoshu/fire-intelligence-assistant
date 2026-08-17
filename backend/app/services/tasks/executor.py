@@ -72,5 +72,5 @@ def create_task_executor() -> TaskExecutor:
 
     settings = get_settings()
     if settings.TASK_EXECUTOR == "in_process":
-        return InProcessTaskExecutor(max_workers=settings.TASK_EXECUTOR_WORKERS)
+        return InProcessTaskExecutor(max_workers=settings.EXECUTOR_WORKERS)
     raise ValueError(f"不支持的任务执行器: {settings.TASK_EXECUTOR}")

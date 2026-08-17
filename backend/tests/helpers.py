@@ -52,8 +52,8 @@ def wait_task(client, tokens, task_id, timeout=15.0) -> dict:
     raise AssertionError(f"任务 {task_id} 在 {timeout}s 内未到达终态")
 
 
-def make_admin(user_id: str) -> None:
-    """直接把用户角色改为 admin（M2 无用户管理端点）。"""
+def make_role(user_id: str, role: str) -> None:
+    """直接修改用户角色（测试辅助，绕过管理端点）。"""
     import uuid
 
     from app.db import SessionLocal
@@ -62,10 +62,61 @@ def make_admin(user_id: str) -> None:
     session = SessionLocal()
     try:
         user = session.get(User, uuid.UUID(user_id))
-        user.role = "admin"
+        user.role = role
         session.commit()
     finally:
         session.close()
+
+
+def make_admin(user_id: str) -> None:
+    """直接把用户角色改为 admin。"""
+    make_role(user_id, "admin")
+
+
+def make_test_video_bytes(seconds: int = 5, with_audio: bool = True) -> bytes:
+    """用 imageio-ffmpeg 自带的 ffmpeg 合成真实短视频（testsrc + 可选正弦音轨）。
+
+    供管线端到端测试使用：文件满足扩展名/MIME/签名校验且 ffmpeg 可真实抽帧。
+    """
+    import subprocess
+    import tempfile
+    from pathlib import Path
+
+    import imageio_ffmpeg
+
+    exe = imageio_ffmpeg.get_ffmpeg_exe()
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "scene.mp4"
+        args = [
+            exe, "-y", "-hide_banner", "-loglevel", "error",
+            "-f", "lavfi", "-i", f"testsrc=duration={seconds}:size=64x64:rate=10",
+        ]
+        if with_audio:
+            args += ["-f", "lavfi", "-i", f"sine=frequency=440:duration={seconds}"]
+        args += ["-shortest", str(out)]
+        proc = subprocess.run(args, capture_output=True)
+        assert proc.returncode == 0, proc.stderr.decode(errors="replace")
+        return out.read_bytes()
+
+
+def make_test_wav_bytes(seconds: int = 3) -> bytes:
+    """用 ffmpeg 合成真实 WAV（正弦音），供询问记录管线测试使用。"""
+    import subprocess
+    import tempfile
+    from pathlib import Path
+
+    import imageio_ffmpeg
+
+    exe = imageio_ffmpeg.get_ffmpeg_exe()
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "audio.wav"
+        proc = subprocess.run(
+            [exe, "-y", "-hide_banner", "-loglevel", "error",
+             "-f", "lavfi", "-i", f"sine=frequency=440:duration={seconds}", str(out)],
+            capture_output=True,
+        )
+        assert proc.returncode == 0, proc.stderr.decode(errors="replace")
+        return out.read_bytes()
 
 
 def fake_embed(texts: list[str]) -> list[list[float]]:

@@ -47,6 +47,8 @@ _CATEGORY_EXTENSIONS: dict[str, set[str]] = {
     "image": {".jpg", ".jpeg", ".png"},
     "audio": {".wav", ".mp3", ".m4a"},
     "document": {".pdf", ".doc", ".docx", ".ppt", ".pptx", ".txt", ".md"},
+    # DATABASE.md uploaded_files.category 含 knowledge_source；规则同"文档"（API.md §9）
+    "knowledge_source": {".pdf", ".doc", ".docx", ".ppt", ".pptx", ".txt", ".md"},
 }
 
 _CATEGORY_MAX_BYTES: dict[str, int] = {
@@ -54,6 +56,7 @@ _CATEGORY_MAX_BYTES: dict[str, int] = {
     "image": 20 * MB,
     "audio": 200 * MB,
     "document": 50 * MB,
+    "knowledge_source": 50 * MB,
 }
 
 # ISO BMFF（mp4/mov/m4a）第 4~8 字节为 "ftyp"

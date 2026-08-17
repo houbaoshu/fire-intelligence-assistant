@@ -2,6 +2,11 @@
 
 共享逻辑：generate 编排（校验上传 → 建草稿 → 建任务 → 提交执行器，单事务）、
 数据归属、finalized 防覆盖、审计。
+
+数据归属（M6）：admin 可见全部；supervisor 可见所属组织成员创建的记录
+（未分配组织时回退为本人记录）；inspector / viewer 仅本人记录。
+更新权限（M6）：编辑本人记录需 record.create；修改他人记录需 record.review；
+将记录推进为 finalized 需 record.finalize（specs/_common.md「角色与权限」）。
 """
 
 import uuid
@@ -9,12 +14,14 @@ import uuid
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.exceptions import AppException, conflict, not_found
+from app.core.exceptions import AppException, conflict, forbidden, not_found
 from app.models.ai_task import AITask
 from app.models.user import AuditLog, User
 from app.repositories.task_repository import TaskRepository
-from app.repositories.user_repository import AuditLogRepository
+from app.repositories.user_repository import AuditLogRepository, UserRepository
 from app.services.file_service import FileService
+from app.services.idempotency import compute_request_hash, find_idempotent_task
+from app.services.permission_service import PermissionService
 from app.services.storage import StorageService
 from app.services.tasks import get_task_executor
 
@@ -36,6 +43,31 @@ class RecordServiceBase:
     def _is_admin(user: User) -> bool:
         return user.role == "admin"
 
+    def _visible_creator_ids(self, user: User) -> list[uuid.UUID] | None:
+        """记录可见范围的创建者集合：None=不过滤（admin）；supervisor 有组织=
+        组织全体成员；其余（含未分配组织的 supervisor）= 仅本人。"""
+        if self._is_admin(user):
+            return None
+        if user.role == "supervisor" and user.organization_id is not None:
+            return UserRepository(self.session).ids_in_organization(user.organization_id)
+        return [user.id]
+
+    def _require_permission(self, user: User, code: str) -> None:
+        if not PermissionService(self.session).has_permission(user.role, code):
+            raise forbidden("当前角色无权执行此操作")
+
+    def _check_update_permission(
+        self, user: User, record, new_status: str | None
+    ) -> None:
+        """更新授权：编辑本人记录需 record.create；修改他人记录需 record.review；
+        推进 finalized 需 record.finalize。"""
+        if record.created_by == user.id:
+            self._require_permission(user, "record.create")
+        else:
+            self._require_permission(user, "record.review")
+        if new_status == "finalized" and record.status != "finalized":
+            self._require_permission(user, "record.finalize")
+
     def _check_remarks(self, remarks: str | None) -> None:
         max_len = self.settings.REMARKS_MAX_LENGTH
         if remarks is not None and len(remarks) > max_len:
@@ -55,8 +87,23 @@ class RecordServiceBase:
         record,
         remarks: str | None,
         request_id: str | None = None,
+        idempotency_key: str | None = None,
     ) -> AITask:
-        """generate 统一编排（DATABASE.md 事务规则：多表写入单事务）。"""
+        """generate 统一编排（DATABASE.md 事务规则：多表写入单事务）。
+
+        幂等提交（API.md §1.5）：带 Idempotency-Key 的重复提交直接返回
+        首个任务，不重复创建上传/草稿/任务；同 key 不同请求体返回 409。
+        """
+        request_hash = compute_request_hash(data, remarks)
+        existing = find_idempotent_task(
+            self.session,
+            user_id=user.id,
+            task_type=task_type,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+        )
+        if existing is not None:
+            return existing
         self._check_remarks(remarks)
         uploaded = self.files.save_upload(
             filename=filename or "",
@@ -78,6 +125,9 @@ class RecordServiceBase:
                 "original_name": uploaded.original_name,
                 "remarks": remarks,
             },
+            max_attempts=self.settings.TASK_MAX_ATTEMPTS,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash if idempotency_key else None,
             created_by=user.id,
         )
         self.tasks.add(task)
@@ -98,7 +148,7 @@ class RecordServiceBase:
         return task
 
     def _get_or_404(self, repo, record_id: uuid.UUID, user: User, label: str):
-        record = repo.get_scoped(record_id, user.id, self._is_admin(user))
+        record = repo.get_scoped(record_id, self._visible_creator_ids(user))
         if record is None:
             raise not_found(f"{label}不存在")
         return record

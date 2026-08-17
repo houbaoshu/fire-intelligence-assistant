@@ -14,9 +14,12 @@ from app.models.base import utc_now
 from app.models.inspection import InspectionRecord
 from app.models.interview import InterviewRecord
 from app.models.photo_report import PhotoReport
-from app.models.user import User
+from app.models.user import AuditLog, User
 from app.repositories.task_repository import TaskRepository
+from app.repositories.user_repository import AuditLogRepository
+from app.services.notification_service import notify_task_terminal
 from app.services.tasks.executor import TaskExecutor
+from app.services.tasks.state_machine import transition
 
 _RECORD_MODELS = {
     "inspection_record": InspectionRecord,
@@ -29,6 +32,7 @@ class TaskService:
     def __init__(self, session: Session, executor: TaskExecutor) -> None:
         self.session = session
         self.tasks = TaskRepository(session)
+        self.audit = AuditLogRepository(session)
         self.executor = executor
 
     @staticmethod
@@ -45,8 +49,14 @@ class TaskService:
     def list(self, user: User, status: str | None, limit: int) -> tuple[list[AITask], int]:
         return self.tasks.list_scoped(user.id, self._is_admin(user), status, limit)
 
-    def retry(self, task_id: uuid.UUID, user: User) -> AITask:
-        """仅 failed/cancelled 可重试；重试创建新任务实例，原任务保留审计。"""
+    def retry(
+        self, task_id: uuid.UUID, user: User, request_id: str | None = None
+    ) -> AITask:
+        """仅 failed/cancelled 可重试；重试创建新任务实例，原任务保留审计。
+
+        新实例 attempt_count 递增并把原任务 id 记入 input_data.retry_of；
+        达到 max_attempts 后再次失败即死信（RETRY_EXHAUSTED，见 tasks/execution.py）。
+        """
         original = self.get(task_id, user)
         if original.status not in RETRYABLE_STATUSES:
             raise conflict(
@@ -55,19 +65,38 @@ class TaskService:
             )
         self._guard_finalized_record(original)
 
+        input_data = dict(original.input_data or {})
+        input_data["retry_of"] = str(original.id)
         new_task = AITask(
             task_type=original.task_type,
             status="pending",
-            input_data=dict(original.input_data or {}),
+            input_data=input_data,
+            attempt_count=original.attempt_count + 1,
+            max_attempts=original.max_attempts,
             created_by=user.id,
         )
         self.tasks.add(new_task)
+        self.audit.append(
+            AuditLog(
+                user_id=user.id,
+                action="task.retry",
+                entity_type="ai_task",
+                entity_id=original.id,
+                request_id=request_id,
+                details={
+                    "new_task_id": str(new_task.id),
+                    "attempt_count": new_task.attempt_count,
+                },
+            )
+        )
         self.session.commit()
         self.session.refresh(new_task)
         self.executor.submit(new_task.id)
         return new_task
 
-    def cancel(self, task_id: uuid.UUID, user: User) -> AITask:
+    def cancel(
+        self, task_id: uuid.UUID, user: User, request_id: str | None = None
+    ) -> AITask:
         """仅 pending/queued/processing 可取消；取消为尽力而为。
 
         先向执行器发取消信号（置位标记 + 尝试撤销未启动任务），随后调和状态：
@@ -80,8 +109,19 @@ class TaskService:
                 f"当前状态 {task.status} 不允许取消（仅 pending/queued/processing 可取消）",
             )
         self.executor.request_cancel(task.id)
-        task.status = "cancelled"
+        transition(task, "cancelled", actor="user")
         task.completed_at = utc_now()
+        task.lease_expires_at = None
+        notify_task_terminal(self.session, task)
+        self.audit.append(
+            AuditLog(
+                user_id=user.id,
+                action="task.cancel",
+                entity_type="ai_task",
+                entity_id=task.id,
+                request_id=request_id,
+            )
+        )
         self.session.commit()
         self.session.refresh(task)
         return task

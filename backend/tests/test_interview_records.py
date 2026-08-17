@@ -1,6 +1,6 @@
 """询问记录测试（API.md §4.3）：generate（仅音频）、字段校验、download。"""
 
-from .helpers import FAKE_MP4, FAKE_WAV, auth_headers, register, wait_task
+from .helpers import FAKE_MP4, FAKE_WAV, auth_headers, make_role, register, wait_task
 
 BASE = "/api/interview-record"
 
@@ -102,6 +102,8 @@ def test_finalized_update_returns_409(client):
     tokens = register(client)
     _generate(client, tokens)
     record_id = _record_id(client, tokens)
+    # 定稿需 record.finalize 权限（M6：supervisor/admin）
+    make_role(tokens["user"]["id"], "supervisor")
     resp = client.put(
         f"{BASE}/{record_id}", headers=auth_headers(tokens), json={"status": "finalized"}
     )

@@ -35,6 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       user: me.data ?? null,
+      permissions: me.data?.permissions ?? [],
+      hasPermission: (code: string) => (me.data?.permissions ?? []).includes(code),
       isInitializing,
       isAuthenticated,
       setUser: (user: AuthUser) => queryClient.setQueryData(["auth", "me"], user),

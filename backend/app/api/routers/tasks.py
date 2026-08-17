@@ -2,11 +2,12 @@
 
 import uuid
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query, Request
 
-from app.api.dependencies import CurrentUser, DbSession
+from app.api.dependencies import CurrentUser, DbSession, get_request_id, require_permission
 from app.core.exceptions import AppException
 from app.models.ai_task import TASK_STATUSES
+from app.models.user import User
 from app.schemas.tasks import (
     TaskCancelResponse,
     TaskListResponse,
@@ -57,15 +58,25 @@ def get_task(task_id: uuid.UUID, session: DbSession, current_user: CurrentUser) 
 
 @router.post("/{task_id}/retry", response_model=TaskRetryResponse)
 def retry_task(
-    task_id: uuid.UUID, session: DbSession, current_user: CurrentUser
+    task_id: uuid.UUID,
+    session: DbSession,
+    request: Request,
+    current_user: User = Depends(require_permission("task.manage")),
 ) -> TaskRetryResponse:
-    new_task = TaskService(session, get_task_executor()).retry(task_id, current_user)
+    new_task = TaskService(session, get_task_executor()).retry(
+        task_id, current_user, request_id=get_request_id(request)
+    )
     return TaskRetryResponse(task_id=new_task.id)
 
 
 @router.post("/{task_id}/cancel", response_model=TaskCancelResponse)
 def cancel_task(
-    task_id: uuid.UUID, session: DbSession, current_user: CurrentUser
+    task_id: uuid.UUID,
+    session: DbSession,
+    request: Request,
+    current_user: User = Depends(require_permission("task.manage")),
 ) -> TaskCancelResponse:
-    task = TaskService(session, get_task_executor()).cancel(task_id, current_user)
+    task = TaskService(session, get_task_executor()).cancel(
+        task_id, current_user, request_id=get_request_id(request)
+    )
     return TaskCancelResponse(task_id=task.id, status=task.status)

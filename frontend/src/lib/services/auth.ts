@@ -9,11 +9,15 @@ import { api, clearAuthSession, setAuthSession } from "../api-client";
 /** 角色枚举见 DATABASE.md users 表。 */
 export type UserRole = "admin" | "supervisor" | "inspector" | "viewer";
 
+export const USER_ROLES: UserRole[] = ["admin", "supervisor", "inspector", "viewer"];
+
 export type AuthUser = {
   id: string;
   email: string;
   full_name: string;
   role: UserRole;
+  /** GET /api/auth/me 追加的权限码列表(API.md §11);旧后端未返回时为 undefined,调用方须可选链处理。 */
+  permissions?: string[];
 };
 
 /** POST /api/auth/login 与 /api/auth/register 的响应（两者结构相同）。 */

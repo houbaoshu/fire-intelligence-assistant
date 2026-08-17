@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as RegulationQaRouteImport } from './routes/regulation-qa'
 import { Route as RegisterRouteImport } from './routes/register'
@@ -18,10 +19,21 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PhotoReportIndexRouteImport } from './routes/photo-report/index'
 import { Route as InterviewRecordIndexRouteImport } from './routes/interview-record/index'
 import { Route as InspectionRecordIndexRouteImport } from './routes/inspection-record/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as PhotoReportIdRouteImport } from './routes/photo-report/$id'
 import { Route as InterviewRecordIdRouteImport } from './routes/interview-record/$id'
 import { Route as InspectionRecordIdRouteImport } from './routes/inspection-record/$id'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminPermissionsRouteImport } from './routes/admin/permissions'
+import { Route as AdminOrganizationsRouteImport } from './routes/admin/organizations'
+import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments'
+import { Route as AdminAuditLogsRouteImport } from './routes/admin/audit-logs'
 
+const TasksRoute = TasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -67,6 +79,11 @@ const InspectionRecordIndexRoute = InspectionRecordIndexRouteImport.update({
   path: '/inspection-record/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PhotoReportIdRoute = PhotoReportIdRouteImport.update({
   id: '/photo-report/$id',
   path: '/photo-report/$id',
@@ -82,6 +99,31 @@ const InspectionRecordIdRoute = InspectionRecordIdRouteImport.update({
   path: '/inspection-record/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminPermissionsRoute = AdminPermissionsRouteImport.update({
+  id: '/admin/permissions',
+  path: '/admin/permissions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminOrganizationsRoute = AdminOrganizationsRouteImport.update({
+  id: '/admin/organizations',
+  path: '/admin/organizations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDepartmentsRoute = AdminDepartmentsRouteImport.update({
+  id: '/admin/departments',
+  path: '/admin/departments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAuditLogsRoute = AdminAuditLogsRouteImport.update({
+  id: '/admin/audit-logs',
+  path: '/admin/audit-logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -90,9 +132,16 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/regulation-qa': typeof RegulationQaRoute
   '/settings': typeof SettingsRoute
+  '/tasks': typeof TasksRoute
+  '/admin/audit-logs': typeof AdminAuditLogsRoute
+  '/admin/departments': typeof AdminDepartmentsRoute
+  '/admin/organizations': typeof AdminOrganizationsRoute
+  '/admin/permissions': typeof AdminPermissionsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/inspection-record/$id': typeof InspectionRecordIdRoute
   '/interview-record/$id': typeof InterviewRecordIdRoute
   '/photo-report/$id': typeof PhotoReportIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/inspection-record/': typeof InspectionRecordIndexRoute
   '/interview-record/': typeof InterviewRecordIndexRoute
   '/photo-report/': typeof PhotoReportIndexRoute
@@ -104,9 +153,16 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/regulation-qa': typeof RegulationQaRoute
   '/settings': typeof SettingsRoute
+  '/tasks': typeof TasksRoute
+  '/admin/audit-logs': typeof AdminAuditLogsRoute
+  '/admin/departments': typeof AdminDepartmentsRoute
+  '/admin/organizations': typeof AdminOrganizationsRoute
+  '/admin/permissions': typeof AdminPermissionsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/inspection-record/$id': typeof InspectionRecordIdRoute
   '/interview-record/$id': typeof InterviewRecordIdRoute
   '/photo-report/$id': typeof PhotoReportIdRoute
+  '/admin': typeof AdminIndexRoute
   '/inspection-record': typeof InspectionRecordIndexRoute
   '/interview-record': typeof InterviewRecordIndexRoute
   '/photo-report': typeof PhotoReportIndexRoute
@@ -119,9 +175,16 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/regulation-qa': typeof RegulationQaRoute
   '/settings': typeof SettingsRoute
+  '/tasks': typeof TasksRoute
+  '/admin/audit-logs': typeof AdminAuditLogsRoute
+  '/admin/departments': typeof AdminDepartmentsRoute
+  '/admin/organizations': typeof AdminOrganizationsRoute
+  '/admin/permissions': typeof AdminPermissionsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/inspection-record/$id': typeof InspectionRecordIdRoute
   '/interview-record/$id': typeof InterviewRecordIdRoute
   '/photo-report/$id': typeof PhotoReportIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/inspection-record/': typeof InspectionRecordIndexRoute
   '/interview-record/': typeof InterviewRecordIndexRoute
   '/photo-report/': typeof PhotoReportIndexRoute
@@ -135,9 +198,16 @@ export interface FileRouteTypes {
     | '/register'
     | '/regulation-qa'
     | '/settings'
+    | '/tasks'
+    | '/admin/audit-logs'
+    | '/admin/departments'
+    | '/admin/organizations'
+    | '/admin/permissions'
+    | '/admin/users'
     | '/inspection-record/$id'
     | '/interview-record/$id'
     | '/photo-report/$id'
+    | '/admin/'
     | '/inspection-record/'
     | '/interview-record/'
     | '/photo-report/'
@@ -149,9 +219,16 @@ export interface FileRouteTypes {
     | '/register'
     | '/regulation-qa'
     | '/settings'
+    | '/tasks'
+    | '/admin/audit-logs'
+    | '/admin/departments'
+    | '/admin/organizations'
+    | '/admin/permissions'
+    | '/admin/users'
     | '/inspection-record/$id'
     | '/interview-record/$id'
     | '/photo-report/$id'
+    | '/admin'
     | '/inspection-record'
     | '/interview-record'
     | '/photo-report'
@@ -163,9 +240,16 @@ export interface FileRouteTypes {
     | '/register'
     | '/regulation-qa'
     | '/settings'
+    | '/tasks'
+    | '/admin/audit-logs'
+    | '/admin/departments'
+    | '/admin/organizations'
+    | '/admin/permissions'
+    | '/admin/users'
     | '/inspection-record/$id'
     | '/interview-record/$id'
     | '/photo-report/$id'
+    | '/admin/'
     | '/inspection-record/'
     | '/interview-record/'
     | '/photo-report/'
@@ -178,9 +262,16 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   RegulationQaRoute: typeof RegulationQaRoute
   SettingsRoute: typeof SettingsRoute
+  TasksRoute: typeof TasksRoute
+  AdminAuditLogsRoute: typeof AdminAuditLogsRoute
+  AdminDepartmentsRoute: typeof AdminDepartmentsRoute
+  AdminOrganizationsRoute: typeof AdminOrganizationsRoute
+  AdminPermissionsRoute: typeof AdminPermissionsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
   InspectionRecordIdRoute: typeof InspectionRecordIdRoute
   InterviewRecordIdRoute: typeof InterviewRecordIdRoute
   PhotoReportIdRoute: typeof PhotoReportIdRoute
+  AdminIndexRoute: typeof AdminIndexRoute
   InspectionRecordIndexRoute: typeof InspectionRecordIndexRoute
   InterviewRecordIndexRoute: typeof InterviewRecordIndexRoute
   PhotoReportIndexRoute: typeof PhotoReportIndexRoute
@@ -188,6 +279,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tasks': {
+      id: '/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -251,6 +349,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InspectionRecordIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/photo-report/$id': {
       id: '/photo-report/$id'
       path: '/photo-report/$id'
@@ -272,6 +377,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InspectionRecordIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/permissions': {
+      id: '/admin/permissions'
+      path: '/admin/permissions'
+      fullPath: '/admin/permissions'
+      preLoaderRoute: typeof AdminPermissionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/organizations': {
+      id: '/admin/organizations'
+      path: '/admin/organizations'
+      fullPath: '/admin/organizations'
+      preLoaderRoute: typeof AdminOrganizationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/departments': {
+      id: '/admin/departments'
+      path: '/admin/departments'
+      fullPath: '/admin/departments'
+      preLoaderRoute: typeof AdminDepartmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/audit-logs': {
+      id: '/admin/audit-logs'
+      path: '/admin/audit-logs'
+      fullPath: '/admin/audit-logs'
+      preLoaderRoute: typeof AdminAuditLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -282,9 +422,16 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   RegulationQaRoute: RegulationQaRoute,
   SettingsRoute: SettingsRoute,
+  TasksRoute: TasksRoute,
+  AdminAuditLogsRoute: AdminAuditLogsRoute,
+  AdminDepartmentsRoute: AdminDepartmentsRoute,
+  AdminOrganizationsRoute: AdminOrganizationsRoute,
+  AdminPermissionsRoute: AdminPermissionsRoute,
+  AdminUsersRoute: AdminUsersRoute,
   InspectionRecordIdRoute: InspectionRecordIdRoute,
   InterviewRecordIdRoute: InterviewRecordIdRoute,
   PhotoReportIdRoute: PhotoReportIdRoute,
+  AdminIndexRoute: AdminIndexRoute,
   InspectionRecordIndexRoute: InspectionRecordIndexRoute,
   InterviewRecordIndexRoute: InterviewRecordIndexRoute,
   PhotoReportIndexRoute: PhotoReportIndexRoute,

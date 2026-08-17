@@ -63,7 +63,7 @@
 后端（backend/）：
 
 - routers/：HTTP API。
-- services/：业务逻辑。
+- services/：业务逻辑（含 services/ai/ AI 能力 client、services/pipelines/ 生成管线、services/media/ 音视频抽帧与关键帧筛选）。
 - models/：数据库模型。
 - schemas/：Pydantic 模型。
 - core/：配置。

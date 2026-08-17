@@ -52,6 +52,16 @@ class TaskRepository:
         )
         return self.session.execute(stmt).scalar_one() > 0
 
+    def find_by_idempotency(
+        self, user_id: uuid.UUID, task_type: str, idempotency_key: str
+    ) -> AITask | None:
+        stmt = select(AITask).where(
+            AITask.created_by == user_id,
+            AITask.task_type == task_type,
+            AITask.idempotency_key == idempotency_key,
+        )
+        return self.session.execute(stmt).scalar_one_or_none()
+
     def add(self, task: AITask) -> AITask:
         self.session.add(task)
         self.session.flush()

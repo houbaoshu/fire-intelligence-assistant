@@ -25,6 +25,7 @@ from app.repositories.task_repository import TaskRepository
 from app.repositories.user_repository import AuditLogRepository
 from app.rag.embedding.store import get_vector_store
 from app.services.file_service import FileService
+from app.services.idempotency import compute_request_hash, find_idempotent_task
 from app.services.storage import StorageService
 from app.services.tasks import get_task_executor
 
@@ -52,12 +53,28 @@ class KnowledgeBaseService:
         content_type: str | None,
         data: bytes,
         request_id: str | None = None,
+        idempotency_key: str | None = None,
     ) -> tuple[KnowledgeDocument, AITask]:
         """上传源文档：校验 → checksum 去重 → 存储 → 建文档/任务/索引 job（单事务）。
 
+        幂等提交（API.md §1.5）：带 Idempotency-Key 的重复提交直接返回首个
+        文档与任务；同 key 不同文件内容返回 409 IDEMPOTENCY_CONFLICT。
         重复内容检测（DATABASE.md：应尽量使用 checksum）：同 checksum 的未删除
         文档已存在时返回 409 DOCUMENT_DUPLICATE，不静默复用也不产生重复生效版本。
         """
+        request_hash = compute_request_hash(data)
+        existing_task = find_idempotent_task(
+            self.session,
+            user_id=user.id,
+            task_type="knowledge_indexing",
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+        )
+        if existing_task is not None:
+            document = self.documents.get(
+                uuid.UUID((existing_task.input_data or {})["document_id"])
+            )
+            return document, existing_task
         checksum = hashlib.sha256(data).hexdigest()
         existing = self.documents.find_by_checksum(checksum)
         if existing is not None:
@@ -88,6 +105,9 @@ class KnowledgeBaseService:
             task_type="knowledge_indexing",
             status="pending",
             input_data={"document_id": str(document.id)},
+            max_attempts=self.settings.TASK_MAX_ATTEMPTS,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash if idempotency_key else None,
             created_by=user.id,
         )
         self.tasks.add(task)
@@ -153,8 +173,26 @@ class KnowledgeBaseService:
         self.session.commit()
         return document
 
-    def rebuild(self, user: User, request_id: str | None = None) -> AITask:
-        """全量重建索引（knowledge_reindexing 任务）；同一时刻只允许一个。"""
+    def rebuild(
+        self,
+        user: User,
+        request_id: str | None = None,
+        idempotency_key: str | None = None,
+    ) -> AITask:
+        """全量重建索引（knowledge_reindexing 任务）；同一时刻只允许一个。
+
+        幂等提交（API.md §1.5）：无请求体，带 Idempotency-Key 的重复提交
+        直接返回首个任务。
+        """
+        existing = find_idempotent_task(
+            self.session,
+            user_id=user.id,
+            task_type="knowledge_reindexing",
+            idempotency_key=idempotency_key,
+            request_hash=compute_request_hash(),
+        )
+        if existing is not None:
+            return existing
         if self.tasks.has_active_of_type("knowledge_reindexing"):
             raise conflict(
                 "TASK_STATE_CONFLICT", "已有索引重建任务正在进行中，请等待完成后再试"
@@ -163,6 +201,9 @@ class KnowledgeBaseService:
             task_type="knowledge_reindexing",
             status="pending",
             input_data={},
+            max_attempts=self.settings.TASK_MAX_ATTEMPTS,
+            idempotency_key=idempotency_key,
+            request_hash=compute_request_hash() if idempotency_key else None,
             created_by=user.id,
         )
         self.tasks.add(task)

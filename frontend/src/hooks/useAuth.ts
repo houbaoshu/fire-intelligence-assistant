@@ -8,6 +8,10 @@ export type AuthContextValue = {
   isInitializing: boolean;
   /** 持有有效会话。网络错误/后端不可用不会清除会话，仅 401（含 refresh 失败）判为未认证。 */
   isAuthenticated: boolean;
+  /** 当前用户的权限码列表(me 未返回 permissions 时为空数组,不抛错)。 */
+  permissions: string[];
+  /** UX 层按钮可用性判断;授权权威仍在后端,后端拒绝时按其错误信封展示。 */
+  hasPermission: (code: string) => boolean;
   /** 登录/注册成功后写入当前用户，避免再次请求。 */
   setUser: (user: AuthUser) => void;
   /** 退出登录：清除本地会话与缓存并跳转登录页。 */

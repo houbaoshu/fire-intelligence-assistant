@@ -82,7 +82,15 @@ def test_me_with_valid_token(client):
     body = resp.json()
     assert body["email"] == USER["email"]
     assert body["full_name"] == USER["full_name"]
-    assert set(body.keys()) == {"id", "email", "full_name", "role"}
+    assert set(body.keys()) == {"id", "email", "full_name", "role", "permissions"}
+    # M6：me 追加生效权限码（默认角色 inspector）
+    assert set(body["permissions"]) == {
+        "record.read",
+        "record.create",
+        "knowledge.read",
+        "task.manage",
+        "statistics.read",
+    }
 
 
 def test_me_without_token_returns_401(client):

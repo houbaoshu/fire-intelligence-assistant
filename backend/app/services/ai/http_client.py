@@ -48,13 +48,25 @@ class OpenAICompatClient:
     def post_json(self, path: str, payload: dict) -> dict:
         url = f"{self._base_url}{path}"
         headers = {"Authorization": f"Bearer {self._api_key}"}
+        return self._post(url, headers, json=payload)
+
+    def post_multipart(
+        self, path: str, *, data: dict[str, str], files: dict[str, tuple]
+    ) -> dict:
+        """multipart/form-data POST（如 audio transcription）。files 值为
+        httpx 三元组 (filename, bytes, content_type)。"""
+        url = f"{self._base_url}{path}"
+        headers = {"Authorization": f"Bearer {self._api_key}"}
+        return self._post(url, headers, data=data, files=files)
+
+    def _post(self, url: str, headers: dict[str, str], **kwargs) -> dict:
         last_error: str | None = None
         for attempt in range(self._max_retries + 1):
             try:
                 with httpx.Client(
                     timeout=self._timeout, transport=self._transport
                 ) as client:
-                    resp = client.post(url, json=payload, headers=headers)
+                    resp = client.post(url, headers=headers, **kwargs)
                 if resp.status_code >= 500 or resp.status_code == 429:
                     last_error = f"HTTP {resp.status_code}"
                     logger.info("AI 请求失败（可重试）: %s attempt=%d", last_error, attempt)

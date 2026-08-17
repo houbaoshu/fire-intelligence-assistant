@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, LoadingState } from "@/components/common/StateViews";
 import { TaskStatusBadge } from "@/components/common/StatusBadges";
+import { TaskRecordLink } from "@/components/common/TaskRecordLink";
 import { statisticsService, type RecordFamilyStats } from "@/lib/services/statistics";
 import { taskService, type Task } from "@/lib/services/tasks";
 import {
@@ -117,33 +118,9 @@ function StatCard({
   );
 }
 
-/** 已完成的生成类任务的安全导航:按 task_type 链接到对应记录详情。 */
+/** 已完成的生成类任务的安全导航:按 task_type 链接到对应记录详情(共享实现见 TaskRecordLink)。 */
 function RecordLink({ task }: { task: Task }) {
-  const recordId = task.result_data?.record_id;
-  if (!recordId) return null;
-  const cls = "text-xs text-primary hover:underline";
-  switch (task.task_type) {
-    case "inspection_record_generation":
-      return (
-        <Link className={cls} to="/inspection-record/$id" params={{ id: recordId }}>
-          查看记录
-        </Link>
-      );
-    case "photo_report_generation":
-      return (
-        <Link className={cls} to="/photo-report/$id" params={{ id: recordId }}>
-          查看报告
-        </Link>
-      );
-    case "interview_record_generation":
-      return (
-        <Link className={cls} to="/interview-record/$id" params={{ id: recordId }}>
-          查看笔录
-        </Link>
-      );
-    default:
-      return null;
-  }
+  return <TaskRecordLink task={task} />;
 }
 
 function StatisticsSection() {

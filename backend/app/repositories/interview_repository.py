@@ -13,26 +13,25 @@ class InterviewRecordRepository:
         self.session = session
 
     def get_scoped(
-        self, record_id: uuid.UUID, user_id: uuid.UUID, is_admin: bool
+        self, record_id: uuid.UUID, creator_ids: list[uuid.UUID] | None
     ) -> InterviewRecord | None:
         stmt = select(InterviewRecord).where(
             InterviewRecord.id == record_id, InterviewRecord.deleted_at.is_(None)
         )
-        if not is_admin:
-            stmt = stmt.where(InterviewRecord.created_by == user_id)
+        if creator_ids is not None:
+            stmt = stmt.where(InterviewRecord.created_by.in_(creator_ids))
         return self.session.execute(stmt).scalar_one_or_none()
 
     def list_scoped(
         self,
-        user_id: uuid.UUID,
-        is_admin: bool,
+        creator_ids: list[uuid.UUID] | None,
         status: str | None,
         page: int,
         page_size: int,
     ) -> tuple[list[InterviewRecord], int]:
         stmt = select(InterviewRecord).where(InterviewRecord.deleted_at.is_(None))
-        if not is_admin:
-            stmt = stmt.where(InterviewRecord.created_by == user_id)
+        if creator_ids is not None:
+            stmt = stmt.where(InterviewRecord.created_by.in_(creator_ids))
         if status is not None:
             stmt = stmt.where(InterviewRecord.status == status)
         total = self.session.execute(

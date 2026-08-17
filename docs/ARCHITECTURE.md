@@ -318,6 +318,8 @@ backend/
 │   │   ├── ai/
 │   │   ├── storage/
 │   │   ├── documents/
+│   │   ├── media/
+│   │   ├── pipelines/
 │   │   └── tasks/
 │   ├── rag/
 │   │   ├── parsers/

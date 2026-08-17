@@ -5,9 +5,14 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Header, Query, Request, UploadFile
 
-from app.api.dependencies import CurrentUser, DbSession, get_request_id, require_roles
+from app.api.dependencies import (
+    CurrentUser,
+    DbSession,
+    get_request_id,
+    require_permission,
+)
 from app.models.user import User
 from app.schemas.common import Page
 from app.schemas.knowledge import (
@@ -22,7 +27,7 @@ from app.services.knowledge_service import KnowledgeBaseService
 
 router = APIRouter(prefix="/knowledge", tags=["knowledge"])
 
-AdminUser = Depends(require_roles("admin"))
+AdminUser = Depends(require_permission("knowledge.manage"))
 
 
 def _to_list_item(doc) -> KnowledgeDocumentListItem:
@@ -65,6 +70,7 @@ def upload_document(
     request: Request,
     current_user: User = AdminUser,
     file: UploadFile = File(...),
+    idempotency_key: str | None = Header(None),
 ) -> KnowledgeUploadResponse:
     document, task = KnowledgeBaseService(session).upload(
         user=current_user,
@@ -72,6 +78,7 @@ def upload_document(
         content_type=file.content_type,
         data=file.file.read(),
         request_id=get_request_id(request),
+        idempotency_key=idempotency_key,
     )
     return KnowledgeUploadResponse(document_id=document.id, task_id=task.id)
 
@@ -94,9 +101,12 @@ def rebuild_index(
     session: DbSession,
     request: Request,
     current_user: User = AdminUser,
+    idempotency_key: str | None = Header(None),
 ) -> KnowledgeRebuildResponse:
     task = KnowledgeBaseService(session).rebuild(
-        current_user, request_id=get_request_id(request)
+        current_user,
+        request_id=get_request_id(request),
+        idempotency_key=idempotency_key,
     )
     return KnowledgeRebuildResponse(task_id=task.id)
 

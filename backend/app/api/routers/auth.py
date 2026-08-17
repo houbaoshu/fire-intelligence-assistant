@@ -5,13 +5,14 @@ from fastapi import APIRouter, Request
 from app.api.dependencies import CurrentUser, DbSession, get_request_id
 from app.schemas.auth import (
     LoginRequest,
+    MeResponse,
     RefreshRequest,
     RefreshResponse,
     RegisterRequest,
     TokenResponse,
-    UserResponse,
 )
 from app.services.auth_service import AuthService
+from app.services.permission_service import PermissionService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -34,9 +35,11 @@ def register(payload: RegisterRequest, session: DbSession) -> TokenResponse:
     )
 
 
-@router.get("/me", response_model=UserResponse)
-def me(current_user: CurrentUser) -> UserResponse:
-    return AuthService.to_user_response(current_user)
+@router.get("/me", response_model=MeResponse)
+def me(session: DbSession, current_user: CurrentUser) -> MeResponse:
+    base = AuthService.to_user_response(current_user)
+    permissions = PermissionService(session).codes_for_role(current_user.role)
+    return MeResponse(**base.model_dump(), permissions=permissions)
 
 
 @router.post("/refresh", response_model=RefreshResponse)

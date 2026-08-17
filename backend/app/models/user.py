@@ -6,6 +6,9 @@ from datetime import datetime
 from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+# 确保 FK 目标表（organizations/departments）注册到同一 metadata，
+# 单独导入本模块（如脚本/测试辅助）时也能解析 users 的外键
+from app.models import organization as _organization  # noqa: F401
 from app.models.base import Base, JSONVariant, UTCDateTime, new_uuid, utc_now
 
 USER_ROLES = ("admin", "supervisor", "inspector", "viewer")
@@ -21,6 +24,13 @@ class User(Base):
     username: Mapped[str | None] = mapped_column(String, nullable=True)
     role: Mapped[str] = mapped_column(String, nullable=False, default=DEFAULT_ROLE)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # 用户归属（M6）：组织/部门，可空
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("organizations.id"), nullable=True
+    )
+    department_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("departments.id"), nullable=True
+    )
     last_login_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(

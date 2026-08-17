@@ -13,29 +13,29 @@ class InspectionRecordRepository:
         self.session = session
 
     def get_scoped(
-        self, record_id: uuid.UUID, user_id: uuid.UUID, is_admin: bool
+        self, record_id: uuid.UUID, creator_ids: list[uuid.UUID] | None
     ) -> InspectionRecord | None:
-        """按数据归属取记录：非 admin 仅可见自己创建的；无权或不存在返回 None。"""
+        """按数据归属取记录：creator_ids 为 None 时不过滤（admin），否则仅可见
+        指定创建者的记录；无权或不存在返回 None。"""
         stmt = (
             select(InspectionRecord)
             .options(selectinload(InspectionRecord.items))
             .where(InspectionRecord.id == record_id, InspectionRecord.deleted_at.is_(None))
         )
-        if not is_admin:
-            stmt = stmt.where(InspectionRecord.created_by == user_id)
+        if creator_ids is not None:
+            stmt = stmt.where(InspectionRecord.created_by.in_(creator_ids))
         return self.session.execute(stmt).scalar_one_or_none()
 
     def list_scoped(
         self,
-        user_id: uuid.UUID,
-        is_admin: bool,
+        creator_ids: list[uuid.UUID] | None,
         status: str | None,
         page: int,
         page_size: int,
     ) -> tuple[list[InspectionRecord], int]:
         stmt = select(InspectionRecord).where(InspectionRecord.deleted_at.is_(None))
-        if not is_admin:
-            stmt = stmt.where(InspectionRecord.created_by == user_id)
+        if creator_ids is not None:
+            stmt = stmt.where(InspectionRecord.created_by.in_(creator_ids))
         if status is not None:
             stmt = stmt.where(InspectionRecord.status == status)
         total = self.session.execute(

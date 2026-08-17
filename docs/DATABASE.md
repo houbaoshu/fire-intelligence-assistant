@@ -424,8 +424,15 @@ interview_record_pdf
 | result_data | JSONB | 否 | 结构化 AI 结果 |
 | error_code | VARCHAR | 否 | 机器可读错误码 |
 | error_message | TEXT | 否 | 可读错误信息 |
+| queued_at | TIMESTAMP | 否 | 入队时间（queue wait = started_at - queued_at） |
 | started_at | TIMESTAMP | 否 | 任务开始时间 |
 | completed_at | TIMESTAMP | 否 | 任务完成时间 |
+| attempt_count | INTEGER | 是 | 第几次执行（首次为 1，retry 新实例递增） |
+| max_attempts | INTEGER | 是 | 最大尝试次数，达到后失败即死信（error_code=RETRY_EXHAUSTED） |
+| worker_id | VARCHAR | 否 | 认领任务的 worker 标识（主机-进程-线程） |
+| lease_expires_at | TIMESTAMP | 否 | worker 租约过期时间，阶段推进时续约 |
+| idempotency_key | VARCHAR | 否 | 幂等键（Idempotency-Key 请求头） |
+| request_hash | VARCHAR | 否 | 幂等请求体摘要，同 key 不同摘要返回 409 |
 | created_by | UUID | 是 | 引用 users.id |
 | created_at | TIMESTAMP | 是 | 创建时间 |
 | updated_at | TIMESTAMP | 是 | 最后更新时间 |
@@ -460,6 +467,8 @@ knowledge_reindexing
 - 已完成任务应具有 `completed_at`。
 - 失败任务应具有 `error_message`。
 - 敏感文件内容不得复制到 `input_data`。
+- `(created_by, task_type, idempotency_key)` 唯一（`idempotency_key` 为 NULL 时不受限），保证同一用户同一端点的重复提交不产生重复任务。
+- `attempt_count` 必须 >= 1 且 <= `max_attempts` 之外的递升只发生在 retry 新实例上；达到 `max_attempts` 的失败任务以 `RETRY_EXHAUSTED` 进入死信等价流程。
 
 # 表：knowledge_documents
 
@@ -567,6 +576,38 @@ document.download
 - 不得存储密码、token 或完整的敏感文档内容。
 - 审计日志的访问应受到限制。
 
+# 表：notifications
+
+存储用户通知（Milestone 5 落地为正式表）。任务进入终态时由后端写入，
+只读本人通知；内容不得包含敏感信息（无文件内容、无 token、无内部堆栈）。
+
+## 列
+
+| 列名 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| id | UUID | 是 | 主键 |
+| user_id | UUID | 是 | 引用 users.id（通知接收者） |
+| type | VARCHAR | 是 | 通知类型（task_completed / task_failed / task_cancelled） |
+| title | VARCHAR | 是 | 可读标题（中文） |
+| body | TEXT | 是 | 可读正文（不含敏感内容） |
+| entity_type | VARCHAR | 否 | 关联实体类型（业务记录 kind / knowledge_document / ai_task） |
+| entity_id | UUID | 否 | 关联实体 ID |
+| read_at | TIMESTAMP | 否 | 已读时间（NULL 表示未读） |
+| created_at | TIMESTAMP | 是 | 创建时间 |
+
+## Type 取值
+
+```text
+task_completed
+task_failed
+task_cancelled
+```
+
+## 约束
+
+- 用户只能读取与操作自己的通知（按 `user_id` 归属）。
+- 通知是状态派生物，不是事实来源；任务与业务记录仍是事实来源。
+
 # 可选表
 
 以下表可在需要时增加：
@@ -575,7 +616,8 @@ document.download
 - model_configurations
 - prompt_versions
 - evaluation_results
-- notifications
+
+`notifications` 已在 Milestone 5 落地为正式表，定义见上方「表：notifications」。
 
 企业管理的 `organizations` / `departments` / `permissions` / `role_permissions` 已在 Milestone 6 落地为核心表,定义见下方。其余表在对应功能被需要之前不要创建。
 
@@ -611,6 +653,8 @@ document.download
 `users` 表新增可空列：`organization_id`(引用 organizations.id)、`department_id`(引用 departments.id)。
 
 统计范围规则：admin=system；supervisor=organization(按记录创建者所属组织过滤)；inspector/viewer=personal。未分配组织的 supervisor 默认查看全部。
+
+业务记录列表/详情可见范围（M6）：admin=全部；supervisor=同组织成员创建的记录（未分配组织的 supervisor 回退为仅本人记录）；inspector/viewer=仅本人记录。
 
 
 

@@ -7,14 +7,21 @@ import {
   Images,
   Mic,
   BookOpen,
+  ListChecks,
   Settings as SettingsIcon,
   Flame,
   LogOut,
+  Building2,
+  FolderTree,
+  Users,
+  ShieldCheck,
+  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { BackendStatusBadge } from "@/components/common/BackendStatus";
 import { LoadingState } from "@/components/common/StateViews";
+import { NotificationBell } from "@/components/common/NotificationBell";
 import { Button } from "@/components/ui/button";
 
 /** 公开页面：不渲染应用外壳与业务导航。 */
@@ -29,7 +36,17 @@ const NAV: NavItem[] = [
   { to: "/photo-report", label: "图像报告", icon: <Images className="h-4 w-4" /> },
   { to: "/interview-record", label: "询问笔录", icon: <Mic className="h-4 w-4" /> },
   { to: "/knowledge-base", label: "知识库", icon: <BookOpen className="h-4 w-4" /> },
+  { to: "/tasks", label: "任务中心", icon: <ListChecks className="h-4 w-4" /> },
   { to: "/settings", label: "设置", icon: <SettingsIcon className="h-4 w-4" /> },
+];
+
+/** 系统管理分组:仅 admin 角色可见(纯 UX;授权由后端逐次校验,403 按其错误信封展示)。 */
+const ADMIN_NAV: NavItem[] = [
+  { to: "/admin/organizations", label: "组织管理", icon: <Building2 className="h-4 w-4" /> },
+  { to: "/admin/departments", label: "部门管理", icon: <FolderTree className="h-4 w-4" /> },
+  { to: "/admin/users", label: "用户管理", icon: <Users className="h-4 w-4" /> },
+  { to: "/admin/permissions", label: "权限管理", icon: <ShieldCheck className="h-4 w-4" /> },
+  { to: "/admin/audit-logs", label: "审计日志", icon: <ScrollText className="h-4 w-4" /> },
 ];
 
 export function AppShell() {
@@ -67,24 +84,20 @@ export function AppShell() {
             <div className="text-[10px] text-muted-foreground">Fire Intelligence</div>
           </div>
         </div>
-        <nav className="flex-1 space-y-0.5 p-2">
-          {NAV.map((item) => {
-            const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition",
-                  "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  active && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
-                )}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
+        <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
+          {NAV.map((item) => (
+            <NavLink key={item.to} item={item} pathname={pathname} />
+          ))}
+          {user?.role === "admin" && (
+            <>
+              <div className="px-3 pb-1 pt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                系统管理
+              </div>
+              {ADMIN_NAV.map((item) => (
+                <NavLink key={item.to} item={item} pathname={pathname} />
+              ))}
+            </>
+          )}
         </nav>
         <div className="border-t border-sidebar-border p-3">
           <div className="flex items-center gap-2">
@@ -116,6 +129,7 @@ export function AppShell() {
             <span className="hidden text-xs text-muted-foreground sm:inline">
               {user?.full_name || user?.email}
             </span>
+            <NotificationBell />
             <BackendStatusBadge compact />
             <Button
               variant="ghost"
@@ -137,10 +151,29 @@ export function AppShell() {
   );
 }
 
+function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
+  const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+  return (
+    <Link
+      to={item.to}
+      className={cn(
+        "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition",
+        "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+        active && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
+      )}
+    >
+      {item.icon}
+      <span>{item.label}</span>
+    </Link>
+  );
+}
+
 function MobileNav({ pathname }: { pathname: string }) {
+  const { user } = useAuth();
+  const items = user?.role === "admin" ? [...NAV, ...ADMIN_NAV] : NAV;
   return (
     <div className="flex items-center gap-1 overflow-x-auto md:hidden">
-      {NAV.map((item) => {
+      {items.map((item) => {
         const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
         return (
           <Link

@@ -29,6 +29,12 @@ class UserResponse(BaseModel):
     role: str
 
 
+class MeResponse(UserResponse):
+    """GET /api/auth/me 响应（API.md §2.3）：追加生效权限码列表（M6）。"""
+
+    permissions: list[str]
+
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str

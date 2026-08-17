@@ -2,9 +2,15 @@
 
 import uuid
 
-from fastapi import APIRouter, File, Form, Query, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, Query, Request, Response, UploadFile
 
-from app.api.dependencies import CurrentUser, DbSession, get_request_id
+from app.api.dependencies import (
+    CurrentUser,
+    DbSession,
+    get_request_id,
+    require_permission,
+)
+from app.models.user import User
 from app.schemas.common import Page
 from app.schemas.records import (
     GenerateResponse,
@@ -30,10 +36,11 @@ def _stream(filename: str, data: bytes) -> Response:
 @router.post("/generate", response_model=GenerateResponse)
 def generate(
     session: DbSession,
-    current_user: CurrentUser,
     request: Request,
+    current_user: User = Depends(require_permission("record.create")),
     video: UploadFile = File(...),
     remarks: str | None = Form(None),
+    idempotency_key: str | None = Header(None),
 ) -> GenerateResponse:
     task = InspectionRecordService(session).generate(
         user=current_user,
@@ -42,6 +49,7 @@ def generate(
         data=video.file.read(),
         remarks=remarks,
         request_id=get_request_id(request),
+        idempotency_key=idempotency_key,
     )
     return GenerateResponse(task_id=task.id)
 

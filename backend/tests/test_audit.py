@@ -3,7 +3,7 @@
 from app.db import SessionLocal
 from app.models.user import AuditLog
 
-from .helpers import auth_headers, generate_inspection, register, wait_task
+from .helpers import auth_headers, generate_inspection, make_role, register, wait_task
 
 
 def _audit_actions() -> list[str]:
@@ -28,6 +28,8 @@ def test_create_finalize_download_audited(client):
         json={"title": "t"},
     )
     client.get(f"/api/inspection-record/{record_id}/download", headers=auth_headers(tokens))
+    # 定稿需 record.finalize 权限（M6：supervisor/admin）
+    make_role(tokens["user"]["id"], "supervisor")
     client.put(
         f"/api/inspection-record/{record_id}",
         headers=auth_headers(tokens),

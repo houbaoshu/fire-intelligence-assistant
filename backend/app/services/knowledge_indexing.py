@@ -3,9 +3,13 @@
 与 tasks/worker.py 同模式：processing → completed / failed / cancelled，
 进度单调不减，取消为尽力而为（阶段边界检查标记）。同时维护
 knowledge_documents 状态机与 knowledge_index_jobs 落库。
+
+M5：状态变更统一经转移表（tasks/state_machine.py）；认领/续约/死信判定
+复用 tasks/execution.py 的共享助手；终态写通知。
 """
 
 import threading
+import time
 import uuid
 
 from sqlalchemy.orm import Session
@@ -17,7 +21,16 @@ from app.models.base import utc_now
 from app.models.knowledge import INDEXING_STATUSES, KnowledgeDocument, KnowledgeIndexJob
 from app.rag.indexing import index_document, rebuild_index
 from app.repositories.knowledge_repository import KnowledgeIndexJobRepository
+from app.services.notification_service import notify_task_terminal
 from app.services.pipelines import TaskCancelled
+from app.services.tasks.execution import (
+    audit_dead_letter,
+    claim_task,
+    log_terminal,
+    renew_lease,
+    resolve_failure,
+)
+from app.services.tasks.state_machine import transition
 
 logger = get_logger("knowledge.runner")
 
@@ -25,7 +38,11 @@ KNOWLEDGE_TASK_TYPES = ("knowledge_indexing", "knowledge_reindexing")
 
 
 def run_knowledge_task(
-    session: Session, task: AITask, cancel_event: threading.Event
+    session: Session,
+    task: AITask,
+    cancel_event: threading.Event,
+    *,
+    worker_id: str,
 ) -> None:
     """执行知识库任务并落终态；供 tasks/worker.py 按 task_type 分发。"""
     jobs = KnowledgeIndexJobRepository(session)
@@ -42,16 +59,26 @@ def run_knowledge_task(
             )
         )
 
-    task.status = "processing"
-    task.started_at = utc_now()
+    claim_task(session, task, worker_id)
     job.status = "processing"
     session.commit()
 
+    stage_durations: dict[str, int] = {}
+    stage_started = time.monotonic()
+    last_stage: str | None = None
+
     def report(stage: str, progress: int) -> None:
+        nonlocal stage_started, last_stage
         if cancel_event.is_set():
             raise TaskCancelled()
+        now = time.monotonic()
+        if last_stage is not None and stage != last_stage:
+            stage_durations[last_stage] = int((now - stage_started) * 1000)
+        stage_started = now
+        last_stage = stage
         task.progress = max(task.progress, progress)
         task.current_stage = stage
+        renew_lease(task)
         session.commit()
 
     try:
@@ -59,26 +86,36 @@ def run_knowledge_task(
             result_data = _run_index(session, task, job, report)
         else:
             result_data = _run_rebuild(session, job, report)
-        task.status = "completed"
+        if last_stage is not None:
+            stage_durations[last_stage] = int((time.monotonic() - stage_started) * 1000)
+        transition(task, "completed", actor="worker")
         task.progress = 100
         task.current_stage = None
         task.completed_at = utc_now()
+        task.lease_expires_at = None
         task.result_data = result_data
         job.status = "completed"
         job.completed_at = utc_now()
+        notify_task_terminal(session, task)
         session.commit()
+        log_terminal(task, error_code=None, stage_durations_ms=stage_durations)
     except TaskCancelled:
         session.rollback()
-        _finalize_cancelled(session, task, job)
+        _finalize_cancelled(session, task, job, stage_durations)
     except AppException as exc:
         session.rollback()
         logger.info("知识任务 %s 失败: %s %s", task.id, exc.code, exc.message)
-        _finalize_failed(session, task, job, exc.code, exc.message)
+        _finalize_failed(session, task, job, exc.code, exc.message, stage_durations)
     except Exception:
         session.rollback()
         logger.error("知识任务 %s 未预期失败", task.id, exc_info=True)
         _finalize_failed(
-            session, task, job, "INTERNAL_ERROR", "任务执行失败，请重试或联系管理员"
+            session,
+            task,
+            job,
+            "INTERNAL_ERROR",
+            "任务执行失败，请重试或联系管理员",
+            stage_durations,
         )
 
 
@@ -114,16 +151,24 @@ def _run_rebuild(session: Session, job: KnowledgeIndexJob, report) -> dict:
     return {"document_count": result["total"], "indexed_chunks": result["indexed_chunks"]}
 
 
-def _finalize_cancelled(session: Session, task: AITask, job: KnowledgeIndexJob) -> None:
+def _finalize_cancelled(
+    session: Session,
+    task: AITask,
+    job: KnowledgeIndexJob,
+    stage_durations: dict[str, int],
+) -> None:
     task = session.get(AITask, task.id)
     if task is None or task.status in TERMINAL_STATUSES:
         return
-    task.status = "cancelled"
+    transition(task, "cancelled", actor="worker")
     task.completed_at = utc_now()
+    task.lease_expires_at = None
     job.status = "cancelled"
     job.completed_at = utc_now()
     _reset_document_on_abort(session, task, target="uploaded")
+    notify_task_terminal(session, task)
     session.commit()
+    log_terminal(task, error_code=None, stage_durations_ms=stage_durations)
 
 
 def _finalize_failed(
@@ -132,19 +177,26 @@ def _finalize_failed(
     job: KnowledgeIndexJob,
     code: str,
     message: str,
+    stage_durations: dict[str, int],
 ) -> None:
     task = session.get(AITask, task.id)
     if task is None or task.status in TERMINAL_STATUSES:
         return
-    task.status = "failed"
-    task.error_code = code
-    task.error_message = message
+    final_code, final_message, exhausted = resolve_failure(task, code, message)
+    transition(task, "failed", actor="worker")
+    task.error_code = final_code
+    task.error_message = final_message
     task.completed_at = utc_now()
+    task.lease_expires_at = None
+    if exhausted:
+        audit_dead_letter(session, task, code)
     job.status = "failed"
-    job.error_message = message
+    job.error_message = final_message
     job.completed_at = utc_now()
     _reset_document_on_abort(session, task, target="failed")
+    notify_task_terminal(session, task)
     session.commit()
+    log_terminal(task, error_code=final_code, stage_durations_ms=stage_durations)
 
 
 def _reset_document_on_abort(session: Session, task: AITask, *, target: str) -> None:

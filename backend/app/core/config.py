@@ -40,9 +40,13 @@ class Settings(BaseSettings):
     AI_LLM_BASE_URL: str = ""
     AI_VISION_API_KEY: str = ""
     AI_VISION_MODEL: str = ""
+    AI_VISION_BASE_URL: str = ""
     AI_OCR_API_KEY: str = ""
+    AI_OCR_MODEL: str = ""
+    AI_OCR_BASE_URL: str = ""
     AI_SPEECH_API_KEY: str = ""
     AI_SPEECH_MODEL: str = ""
+    AI_SPEECH_BASE_URL: str = ""
     AI_EMBEDDING_API_KEY: str = ""
     AI_EMBEDDING_MODEL: str = ""
     AI_EMBEDDING_BASE_URL: str = ""
@@ -53,6 +57,12 @@ class Settings(BaseSettings):
     AI_HTTP_TIMEOUT_SECONDS: float = 60.0
     AI_HTTP_MAX_RETRIES: int = 2
 
+    # 视频/音频媒体处理（M4 管线：抽帧间隔、关键帧上限、临时工作区目录）
+    MEDIA_FRAME_INTERVAL_SECONDS: float = 2.0
+    MEDIA_MAX_KEY_FRAMES: int = 12
+    # 抽帧/抽音频中间产物的临时目录（用后清理，见 specs/_common.md）
+    MEDIA_TEMP_DIR: str = "./data/temporary"
+
     # 向量库（local=内置本地实现，存 VECTOR_STORE_DIR；chroma=可选 provider，需安装 chromadb）
     VECTOR_STORE_PROVIDER: str = "local"
     VECTOR_STORE_DIR: str = "./data/vectorstore"
@@ -61,9 +71,16 @@ class Settings(BaseSettings):
     RAG_RETRIEVAL_TOP_K: int = 8
     RAG_CONTEXT_TOP_N: int = 5
 
-    # 异步任务执行器（in_process 为开发态进程内线程池；M5 切换 Redis 队列）
+    # 异步任务执行器（in_process 为开发态进程内线程池；可替换为 Redis 队列实现同一抽象）
     TASK_EXECUTOR: str = "in_process"
-    TASK_EXECUTOR_WORKERS: int = 4
+    # 执行器并发 worker 数（进程内线程池大小）
+    EXECUTOR_WORKERS: int = 2
+    # 任务重试上限：attempt_count 达到 max_attempts 后失败即死信（RETRY_EXHAUSTED）
+    TASK_MAX_ATTEMPTS: int = 3
+    # worker 租约时长（秒）：阶段推进时续约；过期未续约视为卡住，由 reaper 恢复
+    TASK_LEASE_SECONDS: float = 300.0
+    # reaper 周期扫描间隔（秒）；应用启动时也会立即执行一次恢复
+    TASK_REAPER_INTERVAL_SECONDS: float = 60.0
 
     @property
     def cors_origin_list(self) -> list[str]:
