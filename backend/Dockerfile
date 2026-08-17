@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY pyproject.toml ./
 COPY app ./app
+COPY alembic.ini ./
+COPY alembic ./alembic
 RUN pip install --upgrade pip && pip install .
 
 RUN mkdir -p /app/data/templates /app/data/temporary /app/data/storage
