@@ -8,6 +8,18 @@ Milestone 3/4：知识库 RAG（解析/分块/embedding/向量库/检索）与�
 Milestone 5：任务系统强化（显式状态机、幂等提交、租约与 reaper、死信、通知、并发配置）。
 Milestone 6：企业管理 —— 组织/部门/权限矩阵（permissions + role_permissions，幂等种子）、
 `/api/admin/*` 管理端点、审计日志查询、`me` 返回生效权限码、统计与业务记录的组织范围。
+Milestone 7：平台工程化 —— Dockerfile 与根目录 docker-compose（SQLite 单容器可跑通，
+PostgreSQL 可选）、启动自动迁移（`AUTO_MIGRATE`）与默认管理员种子（`DEFAULT_ADMIN_*`）、
+`/metrics` Prometheus 指标（`app/core/metrics.py`，无外部依赖）、只读聚合 TTL 缓存
+（`app/core/cache.py`）、`scripts/backup.sh` 备份脚本、S3 兼容存储 provider
+（`.[s3]` extra）、CI（`.github/workflows/ci.yml`）。部署细节见根目录 `docs/DEPLOYMENT.md`。
+Milestone 8：AI 平台 —— Prompt 版本化管理（`prompt_versions` + `app/services/prompt_service.py`）、
+模型管理与路由（`model_configurations` + `app/services/ai/providers.py` 解析：
+DB 生效配置优先、回退环境变量）、问答评估（`evaluation_results` +
+`app/services/evaluation_service.py`）、插件系统（`plugins` + `app/plugins/`，钩子点
+`on_task_terminal` / `on_qa_answer`）、MCP 客户端（`app/mcp/client.py`，`MCP_SERVERS`
+环境变量配置）、Agent 与多智能体编排（`app/services/ai/agent.py`，OpenAI 兼容
+function calling，内置工具 knowledge_search / statistics_summary，MCP 工具并入）。
 契约以根目录 `docs/API.md` 为准，表结构以 `docs/DATABASE.md` 为准，编码规则以 `AGENTS.md` 为准。
 
 ## 环境搭建
@@ -24,7 +36,8 @@ cp .env.example .env   # 按需修改
 
 ## 数据库迁移
 
-schema 一律由 Alembic 管理，应用启动时**不会**自动建表，必须先执行迁移：
+schema 一律由 Alembic 管理。M7 起应用启动时默认自动执行 `alembic upgrade head`
+（`AUTO_MIGRATE=true`；测试与需要手工控制迁移的场景可设 `false`），手工迁移：
 
 ```bash
 .venv/bin/python -m alembic upgrade head
@@ -56,7 +69,43 @@ schema 一律由 Alembic 管理，应用启动时**不会**自动建表，必须
 - `GET /api/admin/users`、`PUT /api/admin/users/{id}`（§11.3）
 - `GET /api/admin/permissions`、`PUT /api/admin/permissions/{role}`（§11.4）
 - `GET /api/admin/audit-logs`（§11.5）
+- `GET /api/admin/prompts`、`POST /api/admin/prompts/{key}/versions`、`POST /api/admin/prompts/{id}/activate`（§12.1）
+- `GET/POST /api/admin/models`、`PUT/DELETE /api/admin/models/{id}`（§12.2）
+- `POST /api/admin/evaluations`、`GET /api/admin/evaluations[/{id}]`（§12.3）
+- `GET /api/admin/plugins`、`PUT /api/admin/plugins/{id}`（§12.4）
+- `POST /api/agent/run`（§12.5，权限码 `agent.run`，inspector 及以上）
 - 文档：`http://localhost:8000/docs`
+
+## M8 设计决策（AI 平台）
+
+- **Prompt 管理**：`prompt_versions` 表存版本化目录；启动时把 `app/prompts/*.py`
+  常量幂等种子为各 key 的 v1 生效版本（某 key 已有任何版本则跳过）。运行时
+  `prompt_service.get_prompt(key)`：DB 生效版本优先，无生效版本/表不可用回退
+  代码常量；QA 查询管线与三条生成管线的系统 Prompt 均改走该服务。激活为单
+  事务切换（同 key 其他版本失效）。权限码 `admin.prompts`。
+- **模型路由**：改动集中在 `app/services/ai/providers.py` 工厂层——
+  `resolve_capability_config(kind)`：DB `model_configurations` 生效配置按
+  `priority` 升序取第一条可完整解析的（`api_key_ref` 只存密钥环境变量名，
+  密钥从该环境变量解析；`base_url` 空则回退该 kind 环境变量 Base URL），
+  否则回退 `AI_{KIND}_*` 环境变量。六个能力服务构造时经此解析，业务代码不感知。
+  权限码 `admin.models`；删除为硬删除（配置为纯管理数据）。
+- **评估**：`evaluation_service.py` 真实调用 M3 查询管线（`run_query`，逐题
+  独立会话 + 超时保护），按规则计分（期望关键词命中率 / 是否附来源 /
+  是否拒答得当），明细存 `details`。权限码 `admin.evaluations`。
+- **插件系统**：契约 `Plugin(name/version/description/hooks)`，内置插件在
+  `app/plugins/builtin/`（task_terminal_logger、qa_disclaimer），启动幂等注册；
+  钩子执行点 `on_task_terminal`（任务终态后）、`on_qa_answer`（QA 回答产出后，
+  可就地改写 answer）；启用状态以 plugins 表为准，钩子异常只记日志不阻断主流程。
+  权限码 `admin.plugins`。
+- **MCP**：`MCP_SERVERS` 环境变量（JSON 数组 `[{name, url, token_ref?}]`）配置，
+  `app/mcp/client.py` 实现 JSON-RPC `tools/list` / `tools/call`（超时 + 可读错误
+  MCP_*）；MCP 工具经 `load_mcp_tools` 并入 Agent 工具集（名单个服务器失败只跳过）。
+- **Agent / 多智能体**：`app/services/ai/agent.py`。Agent 为 OpenAI 兼容
+  function calling 循环（`AGENT_MAX_STEPS` 步数 + `AGENT_TIMEOUT_SECONDS` 总超时）；
+  内置工具 `knowledge_search`（M3 Retriever）与 `statistics_summary`
+  （StatisticsService）；AgentOrchestrator = 规划器（LLM 拆解 JSON 子任务，
+  非法输出回退单子任务）→ 逐个执行（不同工具子集的 Agent 角色）→ 汇总
+  （单子任务直接采用其回答）。权限码 `agent.run`（默认 inspector 及以上）。
 
 ## M6 设计决策（企业管理）
 

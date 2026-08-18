@@ -1,0 +1,15 @@
+# 根构建上下文排除项（docker-compose 以 backend/ 为上下文，此文件兜底）
+**/node_modules/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.output/
+**/.wrangler/
+**/.tanstack/
+**/.git/
+**/.env
+backend/data/storage/
+backend/data/vectorstore/
+backend/data/temporary/
+backend/data/app.db*
+backups/

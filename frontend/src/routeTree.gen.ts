@@ -24,8 +24,12 @@ import { Route as PhotoReportIdRouteImport } from './routes/photo-report/$id'
 import { Route as InterviewRecordIdRouteImport } from './routes/interview-record/$id'
 import { Route as InspectionRecordIdRouteImport } from './routes/inspection-record/$id'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminPromptsRouteImport } from './routes/admin/prompts'
+import { Route as AdminPluginsRouteImport } from './routes/admin/plugins'
 import { Route as AdminPermissionsRouteImport } from './routes/admin/permissions'
 import { Route as AdminOrganizationsRouteImport } from './routes/admin/organizations'
+import { Route as AdminModelsRouteImport } from './routes/admin/models'
+import { Route as AdminEvaluationsRouteImport } from './routes/admin/evaluations'
 import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments'
 import { Route as AdminAuditLogsRouteImport } from './routes/admin/audit-logs'
 
@@ -104,6 +108,16 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/admin/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminPromptsRoute = AdminPromptsRouteImport.update({
+  id: '/admin/prompts',
+  path: '/admin/prompts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminPluginsRoute = AdminPluginsRouteImport.update({
+  id: '/admin/plugins',
+  path: '/admin/plugins',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminPermissionsRoute = AdminPermissionsRouteImport.update({
   id: '/admin/permissions',
   path: '/admin/permissions',
@@ -112,6 +126,16 @@ const AdminPermissionsRoute = AdminPermissionsRouteImport.update({
 const AdminOrganizationsRoute = AdminOrganizationsRouteImport.update({
   id: '/admin/organizations',
   path: '/admin/organizations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminModelsRoute = AdminModelsRouteImport.update({
+  id: '/admin/models',
+  path: '/admin/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminEvaluationsRoute = AdminEvaluationsRouteImport.update({
+  id: '/admin/evaluations',
+  path: '/admin/evaluations',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminDepartmentsRoute = AdminDepartmentsRouteImport.update({
@@ -135,8 +159,12 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof TasksRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
+  '/admin/evaluations': typeof AdminEvaluationsRoute
+  '/admin/models': typeof AdminModelsRoute
   '/admin/organizations': typeof AdminOrganizationsRoute
   '/admin/permissions': typeof AdminPermissionsRoute
+  '/admin/plugins': typeof AdminPluginsRoute
+  '/admin/prompts': typeof AdminPromptsRoute
   '/admin/users': typeof AdminUsersRoute
   '/inspection-record/$id': typeof InspectionRecordIdRoute
   '/interview-record/$id': typeof InterviewRecordIdRoute
@@ -156,8 +184,12 @@ export interface FileRoutesByTo {
   '/tasks': typeof TasksRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
+  '/admin/evaluations': typeof AdminEvaluationsRoute
+  '/admin/models': typeof AdminModelsRoute
   '/admin/organizations': typeof AdminOrganizationsRoute
   '/admin/permissions': typeof AdminPermissionsRoute
+  '/admin/plugins': typeof AdminPluginsRoute
+  '/admin/prompts': typeof AdminPromptsRoute
   '/admin/users': typeof AdminUsersRoute
   '/inspection-record/$id': typeof InspectionRecordIdRoute
   '/interview-record/$id': typeof InterviewRecordIdRoute
@@ -178,8 +210,12 @@ export interface FileRoutesById {
   '/tasks': typeof TasksRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
+  '/admin/evaluations': typeof AdminEvaluationsRoute
+  '/admin/models': typeof AdminModelsRoute
   '/admin/organizations': typeof AdminOrganizationsRoute
   '/admin/permissions': typeof AdminPermissionsRoute
+  '/admin/plugins': typeof AdminPluginsRoute
+  '/admin/prompts': typeof AdminPromptsRoute
   '/admin/users': typeof AdminUsersRoute
   '/inspection-record/$id': typeof InspectionRecordIdRoute
   '/interview-record/$id': typeof InterviewRecordIdRoute
@@ -201,8 +237,12 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/admin/audit-logs'
     | '/admin/departments'
+    | '/admin/evaluations'
+    | '/admin/models'
     | '/admin/organizations'
     | '/admin/permissions'
+    | '/admin/plugins'
+    | '/admin/prompts'
     | '/admin/users'
     | '/inspection-record/$id'
     | '/interview-record/$id'
@@ -222,8 +262,12 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/admin/audit-logs'
     | '/admin/departments'
+    | '/admin/evaluations'
+    | '/admin/models'
     | '/admin/organizations'
     | '/admin/permissions'
+    | '/admin/plugins'
+    | '/admin/prompts'
     | '/admin/users'
     | '/inspection-record/$id'
     | '/interview-record/$id'
@@ -243,8 +287,12 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/admin/audit-logs'
     | '/admin/departments'
+    | '/admin/evaluations'
+    | '/admin/models'
     | '/admin/organizations'
     | '/admin/permissions'
+    | '/admin/plugins'
+    | '/admin/prompts'
     | '/admin/users'
     | '/inspection-record/$id'
     | '/interview-record/$id'
@@ -265,8 +313,12 @@ export interface RootRouteChildren {
   TasksRoute: typeof TasksRoute
   AdminAuditLogsRoute: typeof AdminAuditLogsRoute
   AdminDepartmentsRoute: typeof AdminDepartmentsRoute
+  AdminEvaluationsRoute: typeof AdminEvaluationsRoute
+  AdminModelsRoute: typeof AdminModelsRoute
   AdminOrganizationsRoute: typeof AdminOrganizationsRoute
   AdminPermissionsRoute: typeof AdminPermissionsRoute
+  AdminPluginsRoute: typeof AdminPluginsRoute
+  AdminPromptsRoute: typeof AdminPromptsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   InspectionRecordIdRoute: typeof InspectionRecordIdRoute
   InterviewRecordIdRoute: typeof InterviewRecordIdRoute
@@ -384,6 +436,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/prompts': {
+      id: '/admin/prompts'
+      path: '/admin/prompts'
+      fullPath: '/admin/prompts'
+      preLoaderRoute: typeof AdminPromptsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/plugins': {
+      id: '/admin/plugins'
+      path: '/admin/plugins'
+      fullPath: '/admin/plugins'
+      preLoaderRoute: typeof AdminPluginsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/permissions': {
       id: '/admin/permissions'
       path: '/admin/permissions'
@@ -396,6 +462,20 @@ declare module '@tanstack/react-router' {
       path: '/admin/organizations'
       fullPath: '/admin/organizations'
       preLoaderRoute: typeof AdminOrganizationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/models': {
+      id: '/admin/models'
+      path: '/admin/models'
+      fullPath: '/admin/models'
+      preLoaderRoute: typeof AdminModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/evaluations': {
+      id: '/admin/evaluations'
+      path: '/admin/evaluations'
+      fullPath: '/admin/evaluations'
+      preLoaderRoute: typeof AdminEvaluationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/departments': {
@@ -425,8 +505,12 @@ const rootRouteChildren: RootRouteChildren = {
   TasksRoute: TasksRoute,
   AdminAuditLogsRoute: AdminAuditLogsRoute,
   AdminDepartmentsRoute: AdminDepartmentsRoute,
+  AdminEvaluationsRoute: AdminEvaluationsRoute,
+  AdminModelsRoute: AdminModelsRoute,
   AdminOrganizationsRoute: AdminOrganizationsRoute,
   AdminPermissionsRoute: AdminPermissionsRoute,
+  AdminPluginsRoute: AdminPluginsRoute,
+  AdminPromptsRoute: AdminPromptsRoute,
   AdminUsersRoute: AdminUsersRoute,
   InspectionRecordIdRoute: InspectionRecordIdRoute,
   InterviewRecordIdRoute: InterviewRecordIdRoute,

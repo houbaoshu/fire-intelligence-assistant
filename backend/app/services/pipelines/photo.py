@@ -9,11 +9,7 @@ LLM 生成 caption 与报告级 JSON → 落库（photo_reports + photo_report_i
 """
 
 from app.core.config import get_settings
-from app.prompts.photo import (
-    PHOTO_FRAME_ANALYSIS_PROMPT,
-    PHOTO_REPORT_SYSTEM_PROMPT,
-    build_photo_report_user_prompt,
-)
+from app.prompts.photo import build_photo_report_user_prompt
 from app.services.ai.llm import LLMService
 from app.services.ai.ocr import OCRService
 from app.services.ai.providers import AIProviders
@@ -37,6 +33,7 @@ from app.services.pipelines.common import (
     register_key_frame,
     warn,
 )
+from app.services.prompt_service import get_prompt
 from app.services.storage import get_storage_service
 
 
@@ -136,7 +133,7 @@ class PhotoReportPipeline(GenerationPipeline):
         for frame in ctx.artifacts["key_frames"]:
             try:
                 text = vision.analyze_image(
-                    PHOTO_FRAME_ANALYSIS_PROMPT, image_bytes=frame["data"]
+                    get_prompt("photo.FRAME_ANALYSIS"), image_bytes=frame["data"]
                 )
                 result = parse_llm_json(text, stage="vision_analysis")
             except PipelineError:
@@ -174,7 +171,7 @@ class PhotoReportPipeline(GenerationPipeline):
             )
         content = LLMService().chat(
             [
-                {"role": "system", "content": PHOTO_REPORT_SYSTEM_PROMPT},
+                {"role": "system", "content": get_prompt("photo.REPORT_SYSTEM")},
                 {
                     "role": "user",
                     "content": build_photo_report_user_prompt(

@@ -1,12 +1,13 @@
 """Vision 能力服务（OpenAI 兼容多模态 chat completions）。
 
 职责：图像/视频帧理解（AI_CONTEXT.md「Vision Model」）。不做 OCR 推理，
-不生成最终文档。模型与地址一律来自环境变量配置。
+不生成最终文档。模型与地址经模型路由解析（providers.py：DB 生效配置优先，回退环境变量）。
 """
 
 import base64
 
 import httpx
+from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
 from app.services.ai.http_client import (
@@ -14,7 +15,7 @@ from app.services.ai.http_client import (
     ai_not_configured,
     ai_service_error,
 )
-from app.services.ai.providers import AIProviders
+from app.services.ai.providers import resolve_capability_config
 
 
 class VisionService:
@@ -23,16 +24,23 @@ class VisionService:
         settings: Settings | None = None,
         client: OpenAICompatClient | None = None,
         transport: httpx.BaseTransport | None = None,
+        session: Session | None = None,
     ) -> None:
         self._settings = settings or get_settings()
+        config = (
+            None
+            if client is not None
+            else resolve_capability_config("vision", settings=self._settings, session=session)
+        )
+        self._model = config.model if config else self._settings.AI_VISION_MODEL
         self._client = client or (
             OpenAICompatClient(
-                base_url=self._settings.AI_VISION_BASE_URL,
-                api_key=self._settings.AI_VISION_API_KEY,
+                base_url=config.base_url,
+                api_key=config.api_key,
                 settings=self._settings,
                 transport=transport,
             )
-            if AIProviders(self._settings).is_configured("vision")
+            if config
             else None
         )
 
@@ -60,7 +68,7 @@ class VisionService:
         data = self._client.post_json(
             "/chat/completions",
             {
-                "model": self._settings.AI_VISION_MODEL,
+                "model": self._model,
                 "messages": [
                     {
                         "role": "user",

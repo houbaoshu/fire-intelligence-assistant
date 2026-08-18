@@ -24,6 +24,19 @@ dependencies = [
     "python-pptx>=1.0",
 ]
 
+[project.optional-dependencies]
+# PostgreSQL 驱动（生产部署：pip install .[postgres]）
+postgres = ["psycopg[binary]>=3.1"]
+# S3 兼容对象存储（STORAGE_PROVIDER=s3/supabase：pip install .[s3]）
+s3 = ["boto3>=1.34"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",

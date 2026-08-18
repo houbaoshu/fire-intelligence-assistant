@@ -613,9 +613,8 @@ task_cancelled
 以下表可在需要时增加：
 
 - inspection_units
-- model_configurations
-- prompt_versions
-- evaluation_results
+
+`model_configurations` / `prompt_versions` / `evaluation_results` 已在 Milestone 8 落地为正式表（连同 `plugins`），定义见下方 Milestone 8 各小节。
 
 `notifications` 已在 Milestone 5 落地为正式表，定义见上方「表：notifications」。
 
@@ -672,6 +671,9 @@ task_cancelled
 | version | INTEGER | 是 | 版本号,编辑时递增 |
 | is_active | BOOLEAN | 是 | 是否生效(仅一个生效版本) |
 | created_by | UUID | 否 | 编辑者 |
+| created_at / updated_at | TIMESTAMP | - | 通用字段 |
+
+约束：`uq_prompt_versions_key_version`（key, version 联合唯一）；`ix_prompt_versions_key`。
 
 # 表：model_configurations（Milestone 8）
 
@@ -687,6 +689,9 @@ task_cancelled
 | base_url | VARCHAR | 否 | 覆盖 Base URL |
 | api_key_ref | VARCHAR | 否 | 密钥环境变量名(不存密钥本身) |
 | is_active / priority | BOOLEAN / INTEGER | 是 | 生效标记与优先级 |
+| created_at / updated_at | TIMESTAMP | - | 通用字段 |
+
+约束：`ck_model_configurations_kind`（kind 枚举校验）；`ix_model_configurations_kind_active`（kind, is_active）。模型路由解析顺序：该 kind 的生效配置按 priority 升序取第一条可完整解析的，回退环境变量（实现见 `app/services/ai/providers.py`）。
 
 # 表：evaluation_results（Milestone 8）
 
@@ -699,6 +704,9 @@ task_cancelled
 | total_questions / passed | INTEGER | 是 | 问题总数与通过数 |
 | details | JSONB | 否 | 逐题检查明细 |
 | created_by | UUID | 否 | 运行者 |
+| created_at | TIMESTAMP | - | 运行时间 |
+
+status 取值：`completed` / `failed`。计分规则见 API.md §12.3。
 
 # 表：plugins（Milestone 8）
 
@@ -711,14 +719,17 @@ task_cancelled
 | version / description | VARCHAR / TEXT | 否 | 版本与说明 |
 | entry_point | VARCHAR | 是 | 加载入口 |
 | enabled | BOOLEAN | 是 | 是否启用 |
+| created_at / updated_at | TIMESTAMP | - | 通用字段 |
+
+约束：`ix_plugins_name`（name 唯一）。钩子执行点：`on_task_terminal`（任务终态后）、`on_qa_answer`（QA 回答产出后，可就地改写 answer）；启用状态以本表为唯一事实来源，禁用即不执行（实现见 `app/plugins/registry.py`）。
 
 # MCP（Milestone 8）
 
-MCP 服务器通过环境变量 `MCP_SERVERS`(JSON 数组)配置,客户端实现于 `app/mcp/client.py`(HTTP JSON-RPC),工具以 Agent 工具形式暴露。
+MCP 服务器通过环境变量 `MCP_SERVERS`(JSON 数组 `[{name, url, token_ref?}]`，token_ref 只存密钥环境变量名)配置,客户端实现于 `app/mcp/client.py`(HTTP JSON-RPC，方法 `tools/list` / `tools/call`),工具以 Agent 工具形式暴露（名称 `mcp__{server}__{tool}`）。
 
 # Agent（Milestone 8）
 
-Agent 基于 OpenAI 兼容 function calling(`app/services/ai/agent.py`),内置工具:知识检索、统计摘要。多智能体编排由 AgentOrchestrator 实现,任务经规划器拆解执行。
+Agent 基于 OpenAI 兼容 function calling(`app/services/ai/agent.py`),内置工具:知识检索(`knowledge_search`，走 M3 Retriever)、统计摘要(`statistics_summary`，走 StatisticsService)。多智能体编排由 AgentOrchestrator 实现,任务经规划器拆解执行(规划→逐个子任务 Agent 执行→汇总)。端点 `POST /api/agent/run`（API.md §12.5，权限码 `agent.run`）。
 
 # 索引
 

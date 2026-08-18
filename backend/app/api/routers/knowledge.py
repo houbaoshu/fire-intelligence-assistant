@@ -13,6 +13,8 @@ from app.api.dependencies import (
     get_request_id,
     require_permission,
 )
+from app.core.cache import PREFIX_KNOWLEDGE_STATUS, get_cache
+from app.core.config import get_settings
 from app.models.user import User
 from app.schemas.common import Page
 from app.schemas.knowledge import (
@@ -113,4 +115,10 @@ def rebuild_index(
 
 @router.get("/status", response_model=KnowledgeStatusResponse)
 def knowledge_status(session: DbSession, current_user: CurrentUser) -> dict:
-    return KnowledgeBaseService(session).status()
+    # 全库共享的只读聚合：进程内 TTL 缓存（M7），上传/删除/重建/索引终态后失效
+    cached = get_cache().get(PREFIX_KNOWLEDGE_STATUS)
+    if isinstance(cached, dict):
+        return cached
+    result = KnowledgeBaseService(session).status()
+    get_cache().set(PREFIX_KNOWLEDGE_STATUS, result, get_settings().CACHE_TTL_SECONDS)
+    return result

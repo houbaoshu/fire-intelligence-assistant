@@ -9,11 +9,7 @@ LLM 输出非结构化 JSON 按任务失败处理（禁止编造结构化结果�
 
 from app.core.config import get_settings
 from app.models.inspection import ITEM_TYPES, SEVERITIES
-from app.prompts.inspection import (
-    INSPECTION_EXTRACT_SYSTEM_PROMPT,
-    build_inspection_extract_user_prompt,
-)
-from app.prompts.photo import PHOTO_FRAME_ANALYSIS_PROMPT
+from app.prompts.inspection import build_inspection_extract_user_prompt
 from app.services.ai.llm import LLMService
 from app.services.ai.ocr import OCRService
 from app.services.ai.providers import AIProviders
@@ -40,6 +36,7 @@ from app.services.pipelines.common import (
     parse_llm_json,
     warn,
 )
+from app.services.prompt_service import get_prompt
 from app.services.storage import get_storage_service
 
 _NO_USABLE_FRAMES = (
@@ -128,7 +125,7 @@ class InspectionRecordPipeline(GenerationPipeline):
         for frame in key_frames:
             try:
                 text = vision.analyze_image(
-                    PHOTO_FRAME_ANALYSIS_PROMPT, image_bytes=frame.data
+                    get_prompt("photo.FRAME_ANALYSIS"), image_bytes=frame.data
                 )
                 analyses.append({"timestamp": frame.timestamp, "analysis": text})
             except Exception as exc:
@@ -181,7 +178,7 @@ class InspectionRecordPipeline(GenerationPipeline):
         evidence = ctx.artifacts["evidence"]
         content = LLMService().chat(
             [
-                {"role": "system", "content": INSPECTION_EXTRACT_SYSTEM_PROMPT},
+                {"role": "system", "content": get_prompt("inspection.EXTRACT_SYSTEM")},
                 {
                     "role": "user",
                     "content": build_inspection_extract_user_prompt(

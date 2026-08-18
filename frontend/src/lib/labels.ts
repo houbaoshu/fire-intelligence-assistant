@@ -8,6 +8,7 @@ import type { InspectionItemType, InspectionSeverity } from "./services/inspecti
 import type { TaskStatus, TaskType } from "./services/tasks";
 import type { StatisticsScope } from "./services/statistics";
 import type { KnowledgeDocumentStatus } from "./services/knowledge";
+import type { ModelKind } from "./services/ai-platform";
 
 export const RECORD_STATUS_LABELS: Record<RecordStatus, string> = {
   draft: "草稿",
@@ -98,6 +99,25 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   supervisor: "主管",
   inspector: "检查员",
   viewer: "只读用户",
+};
+
+/** 模型能力类型(docs/DATABASE.md model_configurations.kind)的中文标签。 */
+export const MODEL_KIND_LABELS: Record<ModelKind, string> = {
+  llm: "大语言模型",
+  vision: "视觉",
+  ocr: "OCR",
+  speech: "语音识别",
+  embedding: "Embedding",
+  reranker: "Reranker",
+};
+
+/**
+ * 评估运行状态的中文标签。状态机取值定义权在后端(evaluation_results.status),
+ * 此处仅做 UI 本地化;未知值由 labelOf 回退为原始值展示。
+ */
+export const EVALUATION_STATUS_LABELS: Record<string, string> = {
+  completed: "已完成",
+  failed: "失败",
 };
 
 export function labelOf(map: Record<string, string>, value: string | null | undefined): string {

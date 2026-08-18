@@ -83,13 +83,14 @@ def test_me_with_valid_token(client):
     assert body["email"] == USER["email"]
     assert body["full_name"] == USER["full_name"]
     assert set(body.keys()) == {"id", "email", "full_name", "role", "permissions"}
-    # M6：me 追加生效权限码（默认角色 inspector）
+    # M6：me 追加生效权限码（默认角色 inspector）；M8：inspector 及以上持有 agent.run
     assert set(body["permissions"]) == {
         "record.read",
         "record.create",
         "knowledge.read",
         "task.manage",
         "statistics.read",
+        "agent.run",
     }
 
 

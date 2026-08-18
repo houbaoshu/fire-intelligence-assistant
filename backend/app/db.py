@@ -16,10 +16,18 @@ from app.core.config import get_settings
 
 
 def create_engine_from_url(database_url: str) -> Engine:
-    connect_args = (
-        {"check_same_thread": False} if database_url.startswith("sqlite") else {}
+    if database_url.startswith("sqlite"):
+        return create_engine(
+            database_url, connect_args={"check_same_thread": False}, pool_pre_ping=True
+        )
+    # PostgreSQL 等服务端数据库：连接池大小可配（M7）
+    settings = get_settings()
+    return create_engine(
+        database_url,
+        pool_pre_ping=True,
+        pool_size=settings.DB_POOL_SIZE,
+        max_overflow=settings.DB_MAX_OVERFLOW,
     )
-    return create_engine(database_url, connect_args=connect_args, pool_pre_ping=True)
 
 
 engine = create_engine_from_url(get_settings().DATABASE_URL)

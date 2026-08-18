@@ -13,6 +13,7 @@ import uuid
 
 from sqlalchemy.orm import Session
 
+from app.core.cache import invalidate_read_models
 from app.core.config import get_settings
 from app.core.exceptions import AppException, conflict, forbidden, not_found
 from app.models.ai_task import AITask
@@ -144,6 +145,7 @@ class RecordServiceBase:
         )
         self.session.commit()
         self.session.refresh(task)
+        invalidate_read_models()  # 新记录/任务：失效 statistics 缓存（M7）
         get_task_executor().submit(task.id)
         return task
 

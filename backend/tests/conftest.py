@@ -11,6 +11,8 @@ os.environ["JWT_SECRET"] = "test-secret-key-for-pytest-only-32bytes"
 os.environ["STORAGE_DIR"] = str(Path(_tmp_dir) / "storage")
 os.environ["VECTOR_STORE_DIR"] = str(Path(_tmp_dir) / "vectorstore")
 os.environ["MEDIA_TEMP_DIR"] = str(Path(_tmp_dir) / "temporary")
+# 启动自动化（M7）：测试自行通过 Alembic 建表，关闭 lifespan 自动迁移
+os.environ["AUTO_MIGRATE"] = "false"
 
 import pytest
 from fastapi.testclient import TestClient
@@ -41,6 +43,12 @@ _run_migrations()
 def clean_tables():
     """每个测试结束后清空业务表与向量库，保证测试隔离。"""
     yield
+    from app.models.ai_platform import (
+        EvaluationResult,
+        ModelConfiguration,
+        Plugin,
+        PromptVersion,
+    )
     from app.models.ai_task import AITask
     from app.models.generated_document import GeneratedDocument
     from app.models.inspection import InspectionRecord, InspectionRecordItem
@@ -58,6 +66,8 @@ def clean_tables():
     from app.models.user import AuditLog, User, UserProfile
     from app.rag.embedding.store import get_vector_store
     from app.services.permission_service import PermissionService
+    from app.services.plugin_service import PluginService
+    from app.services.prompt_service import PromptService
 
     store = get_vector_store()
     for document_id in store.list_document_ids():
@@ -65,6 +75,10 @@ def clean_tables():
 
     with _engine.begin() as conn:
         for table in (
+            EvaluationResult,
+            ModelConfiguration,
+            PromptVersion,
+            Plugin,
             KnowledgeIndexJob,
             KnowledgeDocument,
             GeneratedDocument,
@@ -85,11 +99,13 @@ def clean_tables():
             Permission,
         ):
             conn.execute(table.__table__.delete())
-    # 权限目录与默认矩阵在每个测试后重置（矩阵编辑测试不得污染后续用例）
+    # 权限目录与默认矩阵、Prompt 种子、内置插件在每个测试后重置（不得污染后续用例）
     from app.db import SessionLocal
 
     with SessionLocal() as session:
         PermissionService(session).seed()
+        PromptService(session).seed()
+        PluginService(session).register_builtin()
         session.commit()
 
 

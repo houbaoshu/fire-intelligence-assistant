@@ -11,8 +11,17 @@ class Settings(BaseSettings):
     )
 
     # 数据库：默认本地 SQLite 便于开发；生产使用 PostgreSQL，
-    # 例如 postgresql+psycopg2://user:pass@host:5432/fire
+    # 例如 postgresql+psycopg://user:pass@host:5432/fire（需安装 postgres extra）
     DATABASE_URL: str = "sqlite:///./data/app.db"
+    # PostgreSQL 连接池（仅非 SQLite 时生效）
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 10
+
+    # 启动自动化（M7）：应用启动时自动执行 alembic upgrade head
+    AUTO_MIGRATE: bool = True
+    # 默认管理员种子：两者同时设置且邮箱不存在时，幂等创建 role=admin 用户
+    DEFAULT_ADMIN_EMAIL: str = ""
+    DEFAULT_ADMIN_PASSWORD: str = ""
 
     # JWT
     JWT_SECRET: str = "change-me-in-production"
@@ -29,6 +38,16 @@ class Settings(BaseSettings):
     # 存储
     STORAGE_PROVIDER: str = "local"
     STORAGE_DIR: str = "./data/storage"
+    # S3 兼容对象存储（STORAGE_PROVIDER=s3 / supabase 时必填 S3_BUCKET；
+    # Supabase 走 S3 兼容端点，将 S3_ENDPOINT_URL 指向 Supabase Storage 的 S3 endpoint）
+    S3_BUCKET: str = ""
+    S3_REGION: str = ""
+    S3_ENDPOINT_URL: str = ""
+    S3_ACCESS_KEY_ID: str = ""
+    S3_SECRET_ACCESS_KEY: str = ""
+
+    # 只读聚合端点的进程内 TTL 缓存（秒；接口可替换 Redis）
+    CACHE_TTL_SECONDS: float = 30.0
 
     # 业务规则
     REMARKS_MAX_LENGTH: int = 2000
@@ -56,6 +75,18 @@ class Settings(BaseSettings):
     # AI HTTP 调用：超时与有限重试
     AI_HTTP_TIMEOUT_SECONDS: float = 60.0
     AI_HTTP_MAX_RETRIES: int = 2
+
+    # MCP（M8）：JSON 数组 [{name, url, token_ref?}]，token_ref 只存密钥环境变量名
+    MCP_SERVERS: str = ""
+    MCP_TIMEOUT_SECONDS: float = 15.0
+
+    # Agent / 多智能体（M8）：执行循环上限（步数、子任务数、总超时）
+    AGENT_MAX_STEPS: int = 8
+    AGENT_MAX_SUBTASKS: int = 4
+    AGENT_TIMEOUT_SECONDS: float = 120.0
+
+    # 评估（M8）：逐题超时保护（秒）
+    EVAL_QUESTION_TIMEOUT_SECONDS: float = 60.0
 
     # 视频/音频媒体处理（M4 管线：抽帧间隔、关键帧上限、临时工作区目录）
     MEDIA_FRAME_INTERVAL_SECONDS: float = 2.0

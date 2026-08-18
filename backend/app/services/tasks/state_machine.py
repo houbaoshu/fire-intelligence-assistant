@@ -24,9 +24,11 @@
 - ``queued`` 为外部队列 provider 预留；进程内执行器不入 queued 中间态。
 """
 
+from app.core.cache import invalidate_read_models
 from app.core.exceptions import conflict
 from app.core.logging import get_logger
-from app.models.ai_task import AITask
+from app.core.metrics import get_metrics_registry
+from app.models.ai_task import TERMINAL_STATUSES, AITask
 
 logger = get_logger("tasks.state_machine")
 
@@ -60,6 +62,11 @@ def transition(task: AITask, target: str, *, actor: str, reason: str = "") -> No
             f"任务状态不允许从 {source} 变更为 {target}",
         )
     task.status = target
+    if target in TERMINAL_STATUSES:
+        # 任务终态计数（进程内指标，重启清零）；任务终态会改变统计与知识库状态，
+        # 统一失效只读聚合缓存（M7）
+        get_metrics_registry().record_task_terminal(task.task_type, target)
+        invalidate_read_models()
     logger.info(
         "task transition: task_id=%s %s -> %s actor=%s%s",
         task.id,

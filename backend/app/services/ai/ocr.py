@@ -1,12 +1,13 @@
 """OCR 能力服务（OpenAI 兼容多模态 chat completions）。
 
 职责：仅从图像中提取文字并保留原始内容（AI_CONTEXT.md「OCR」）；
-推理归 LLM。模型与地址一律来自环境变量配置。
+推理归 LLM。模型与地址经模型路由解析（providers.py：DB 生效配置优先，回退环境变量）。
 """
 
 import base64
 
 import httpx
+from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
 from app.services.ai.http_client import (
@@ -14,7 +15,7 @@ from app.services.ai.http_client import (
     ai_not_configured,
     ai_service_error,
 )
-from app.services.ai.providers import AIProviders
+from app.services.ai.providers import resolve_capability_config
 
 # OCR 的固定指令：只转录图像中的文字，不做任何解释或补全
 _OCR_INSTRUCTION = (
@@ -29,16 +30,23 @@ class OCRService:
         settings: Settings | None = None,
         client: OpenAICompatClient | None = None,
         transport: httpx.BaseTransport | None = None,
+        session: Session | None = None,
     ) -> None:
         self._settings = settings or get_settings()
+        config = (
+            None
+            if client is not None
+            else resolve_capability_config("ocr", settings=self._settings, session=session)
+        )
+        self._model = config.model if config else self._settings.AI_OCR_MODEL
         self._client = client or (
             OpenAICompatClient(
-                base_url=self._settings.AI_OCR_BASE_URL,
-                api_key=self._settings.AI_OCR_API_KEY,
+                base_url=config.base_url,
+                api_key=config.api_key,
                 settings=self._settings,
                 transport=transport,
             )
-            if AIProviders(self._settings).is_configured("ocr")
+            if config
             else None
         )
 
@@ -50,7 +58,7 @@ class OCRService:
         data = self._client.post_json(
             "/chat/completions",
             {
-                "model": self._settings.AI_OCR_MODEL,
+                "model": self._model,
                 "messages": [
                     {
                         "role": "user",

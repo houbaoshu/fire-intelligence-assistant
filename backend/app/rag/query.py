@@ -19,11 +19,12 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
 from app.models.knowledge import KnowledgeDocument
-from app.prompts.qa import NO_EVIDENCE_ANSWER, QA_SYSTEM_PROMPT, build_qa_user_prompt
+from app.prompts.qa import build_qa_user_prompt
 from app.rag.embedding.store import StoredChunk
 from app.rag.reranking import Reranker
 from app.rag.retrieval import Retriever
 from app.services.ai.llm import LLMService
+from app.services.prompt_service import get_prompt
 
 logger = get_logger("rag.query")
 
@@ -88,28 +89,30 @@ def run_query(
 ) -> QAResult:
     """执行查询管线。AI 失败抛可读 AppException；无证据时返回诚实回答。"""
     s = settings or get_settings()
+    # Prompt 运行时取用（M8）：DB 生效版本优先，回退 app/prompts/qa.py 常量
+    no_evidence_answer = get_prompt("qa.NO_EVIDENCE_ANSWER", session)
 
     # 知识库无已索引文档：不调用任何 AI 服务，直接诚实回答（无法检索即无依据）
     if _indexed_document_count(session) == 0:
         logger.info("知识库无已索引文档，返回无证据回答")
-        return QAResult(answer=NO_EVIDENCE_ANSWER, sources=[])
+        return QAResult(answer=no_evidence_answer, sources=[])
 
     retriever = retriever or Retriever(session, settings=s)
     candidates = retriever.retrieve(question)
     if not candidates:
         logger.info("检索无候选，返回无证据回答")
-        return QAResult(answer=NO_EVIDENCE_ANSWER, sources=[])
+        return QAResult(answer=no_evidence_answer, sources=[])
 
     reranker = reranker or Reranker(settings=s)
     ranked, mode = reranker.rerank(question, candidates)
     if not ranked:
-        return QAResult(answer=NO_EVIDENCE_ANSWER, sources=[])
+        return QAResult(answer=no_evidence_answer, sources=[])
 
     contexts = [f"{_context_label(c)}：{c.content.strip()}" for c in ranked]
     llm = llm or LLMService(s)
     answer = llm.chat(
         [
-            {"role": "system", "content": QA_SYSTEM_PROMPT},
+            {"role": "system", "content": get_prompt("qa.QA_SYSTEM", session)},
             {"role": "user", "content": build_qa_user_prompt(question, contexts)},
         ]
     )

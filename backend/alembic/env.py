@@ -11,6 +11,7 @@ from app.models.base import Base
 
 # 导入全部模型模块，确保 metadata 完整
 from app.models import (  # noqa: F401
+    ai_platform,
     ai_task,
     generated_document,
     inspection,

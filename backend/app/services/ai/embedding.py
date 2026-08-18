@@ -4,6 +4,7 @@
 """
 
 import httpx
+from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
 from app.services.ai.http_client import (
@@ -11,7 +12,7 @@ from app.services.ai.http_client import (
     ai_not_configured,
     ai_service_error,
 )
-from app.services.ai.providers import AIProviders
+from app.services.ai.providers import resolve_capability_config
 
 
 class EmbeddingService:
@@ -20,16 +21,23 @@ class EmbeddingService:
         settings: Settings | None = None,
         client: OpenAICompatClient | None = None,
         transport: httpx.BaseTransport | None = None,
+        session: Session | None = None,
     ) -> None:
         self._settings = settings or get_settings()
+        config = (
+            None
+            if client is not None
+            else resolve_capability_config("embedding", settings=self._settings, session=session)
+        )
+        self._model = config.model if config else self._settings.AI_EMBEDDING_MODEL
         self._client = client or (
             OpenAICompatClient(
-                base_url=self._settings.AI_EMBEDDING_BASE_URL,
-                api_key=self._settings.AI_EMBEDDING_API_KEY,
+                base_url=config.base_url,
+                api_key=config.api_key,
                 settings=self._settings,
                 transport=transport,
             )
-            if AIProviders(self._settings).is_configured("embedding")
+            if config
             else None
         )
 
@@ -41,7 +49,7 @@ class EmbeddingService:
             return []
         data = self._client.post_json(
             "/embeddings",
-            {"model": self._settings.AI_EMBEDDING_MODEL, "input": texts},
+            {"model": self._model, "input": texts},
         )
         try:
             items = sorted(data["data"], key=lambda item: item["index"])

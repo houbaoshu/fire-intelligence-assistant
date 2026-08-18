@@ -29,6 +29,11 @@ PERMISSION_CATALOG: list[tuple[str, str, str]] = [
     ("admin.orgs", "组织管理", "管理组织与部门"),
     ("admin.permissions", "权限管理", "查看与调整角色权限矩阵"),
     ("admin.audit", "审计查询", "查询审计日志"),
+    ("admin.prompts", "Prompt 管理", "查看 Prompt 版本、新建版本与激活"),
+    ("admin.models", "模型管理", "管理模型配置（路由生效配置）"),
+    ("admin.evaluations", "评估管理", "运行与查看问答评估"),
+    ("admin.plugins", "插件管理", "查看与启停服务端插件"),
+    ("agent.run", "运行 Agent", "执行 Agent / 多智能体目标"),
 ]
 
 PERMISSION_CODES: tuple[str, ...] = tuple(code for code, _, _ in PERMISSION_CATALOG)
@@ -43,6 +48,7 @@ _DEFAULT_MATRIX: dict[str, list[str]] = {
         "knowledge.read",
         "task.manage",
         "statistics.read",
+        "agent.run",
     ],
     "supervisor": [
         "record.read",
@@ -52,6 +58,7 @@ _DEFAULT_MATRIX: dict[str, list[str]] = {
         "knowledge.read",
         "task.manage",
         "statistics.read",
+        "agent.run",
     ],
     "admin": list(PERMISSION_CODES),
 }

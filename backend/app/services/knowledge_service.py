@@ -10,6 +10,7 @@ import uuid
 
 from sqlalchemy.orm import Session
 
+from app.core.cache import invalidate_read_models
 from app.core.config import get_settings
 from app.core.exceptions import conflict, not_found
 from app.models.ai_task import AITask
@@ -132,6 +133,7 @@ class KnowledgeBaseService:
         self.session.commit()
         self.session.refresh(document)
         self.session.refresh(task)
+        invalidate_read_models()  # 知识库变更：失效 statistics / knowledge status 缓存
         get_task_executor().submit(task.id)
         return document, task
 
@@ -171,6 +173,7 @@ class KnowledgeBaseService:
             )
         )
         self.session.commit()
+        invalidate_read_models()
         return document
 
     def rebuild(
@@ -221,6 +224,7 @@ class KnowledgeBaseService:
         )
         self.session.commit()
         self.session.refresh(task)
+        invalidate_read_models()
         get_task_executor().submit(task.id)
         return task
 

@@ -66,6 +66,19 @@ def notify_task_terminal(session: Session, task: AITask) -> None:
             entity_id=entity_id,
         )
     )
+    # 插件钩子（M8）：任务终态事件，启用状态以 plugins 表为准
+    from app.plugins import run_hook
+
+    run_hook(
+        session,
+        "on_task_terminal",
+        {
+            "task_id": str(task.id),
+            "task_type": task.task_type,
+            "status": task.status,
+            "error_message": task.error_message,
+        },
+    )
 
 
 def _resolve_entity(task: AITask) -> tuple[str | None, uuid.UUID | None]:

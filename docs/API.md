@@ -8,10 +8,10 @@
 
 ## 1.1 路径与认证
 
-- 所有业务端点以 `/api` 为前缀；唯一例外是 `GET /health`，不在 `/api` 前缀之下。
+- 所有业务端点以 `/api` 为前缀；例外：`GET /health` 与 `GET /metrics`（M7 监控），不在 `/api` 前缀之下。
 - 资源路径使用单数形式（`/api/inspection-record`，而非 `/api/inspection-records`），未经有意的 API 修订不得变更。
 - 业务端点要求请求头 `Authorization: Bearer <access_token>`；token 缺失或无效返回 `401`。
-- 公开端点白名单（无需认证）：`GET /health`、`POST /api/auth/login`、`POST /api/auth/register`。
+- 公开端点白名单（无需认证）：`GET /health`、`GET /metrics`、`POST /api/auth/login`、`POST /api/auth/register`。
 
 ## 1.2 请求与响应格式
 
@@ -132,6 +132,10 @@
 ```json
 {"status": "ok"}
 ```
+
+**`GET /metrics`**（公开，不在 `/api` 前缀之下，M7）：Prometheus 文本格式指标
+（`http_requests_total` / `http_request_duration_seconds` / `ai_tasks_terminal_total`），
+详见 `docs/DEPLOYMENT.md`「监控」。
 
 # 4. 业务记录（Inspection / Photo / Interview）
 
@@ -738,3 +742,170 @@
   "page_size": 20
 }
 ```
+
+# 12. AI Platform（AI 平台，M8）
+
+本章端点按权限码授权：`admin.prompts` / `admin.models` / `admin.evaluations` / `admin.plugins`（默认仅 `admin` 角色持有 `admin.*`）与 `agent.run`（默认 inspector 及以上角色持有）；权限不足返回 `403` + `FORBIDDEN`。数据表定义见 DATABASE.md「表：prompt_versions / model_configurations / evaluation_results / plugins」「MCP」「Agent」。
+
+通用错误：AI 能力未配置时返回 `500` + `AI_SERVICE_NOT_CONFIGURED`（message 指出缺失配置的能力）；上游 AI 服务失败返回 `500` + `AI_SERVICE_ERROR`；MCP 服务器失败返回 `502` + `MCP_SERVER_ERROR`；MCP_SERVERS 配置非法返回 `500` + `MCP_CONFIG_ERROR`。
+
+## 12.1 Prompt 管理
+
+Prompt 版本化目录（`prompt_versions` 表）：启动时把 `app/prompts/*.py` 常量幂等种子为各 key 的 v1 生效版本；运行时取用 DB 生效版本优先，无生效版本回退代码常量。每个 key 同一时刻仅一个生效版本。
+
+**`GET /api/admin/prompts`**（需 `admin.prompts`）：列出全部版本，按 `key`、`version` 升序。
+
+响应：
+
+```json
+{
+  "items": [
+    {"id": "uuid", "key": "qa.QA_SYSTEM", "name": "法规问答系统 Prompt", "description": "…", "content": "…", "version": 1, "is_active": true, "created_at": "2026-01-01T00:00:00Z"}
+  ]
+}
+```
+
+**`POST /api/admin/prompts/{key}/versions`**（需 `admin.prompts`）：为指定 key 新建草稿版本（`version` 递增，`is_active=false`，需显式激活）。
+
+请求：
+
+```json
+{"content": "新的 Prompt 文本", "name": "可选", "description": "可选"}
+```
+
+响应：新版本对象（字段同上）。`key` 不存在返回 `404` + `NOT_FOUND`；`content` 为空返回 `400` + `VALIDATION_ERROR`。
+
+**`POST /api/admin/prompts/{id}/activate`**（需 `admin.prompts`）：激活指定版本，同 key 其他版本在同一事务内失效。
+
+响应：
+
+```json
+{"id": "uuid", "is_active": true}
+```
+
+版本不存在返回 `404` + `NOT_FOUND`。
+
+## 12.2 模型管理
+
+按能力类型（`kind`：`llm` / `vision` / `ocr` / `speech` / `embedding` / `reranker`）管理模型配置（`model_configurations` 表）。模型路由解析顺序：该 kind 的 DB 生效配置（`is_active=true`，按 `priority` 升序）取第一条可完整解析的，回退环境变量 `AI_{KIND}_*`。`api_key_ref` 只存密钥环境变量名，密钥从该环境变量解析——密钥本身绝不落库、不出现在任何响应中。
+
+**`GET /api/admin/models`**（需 `admin.models`）：列出全部配置，按 `kind`、`priority` 排序。
+
+响应：
+
+```json
+{
+  "items": [
+    {"id": "uuid", "name": "主用 LLM", "kind": "llm", "provider": "openai", "model_name": "gpt-x", "base_url": "https://api.example.com/v1", "api_key_ref": "MY_LLM_KEY", "is_active": true, "priority": 10}
+  ]
+}
+```
+
+**`POST /api/admin/models`**（需 `admin.models`）：创建配置。
+
+请求：
+
+```json
+{"name": "主用 LLM", "kind": "llm", "provider": "openai", "model_name": "gpt-x", "base_url": "可选", "api_key_ref": "可选", "is_active": true, "priority": 100}
+```
+
+`kind` 非法返回 `400` + `VALIDATION_ERROR`。响应：配置对象（字段同上）。
+
+**`PUT /api/admin/models/{id}`**（需 `admin.models`）：更新配置，全部字段可选，仅更新提交的字段。响应：更新后的配置对象。不存在返回 `404` + `NOT_FOUND`。
+
+**`DELETE /api/admin/models/{id}`**（需 `admin.models`）：硬删除配置（配置为纯管理数据，删除即解除路由引用）。
+
+响应：
+
+```json
+{"id": "uuid", "deleted": true}
+```
+
+不存在返回 `404` + `NOT_FOUND`。
+
+## 12.3 评估
+
+评估运行器真实调用 RAG+LLM 查询管线（复用 §5 查询管线），按规则逐题记分：`expected_keywords`（期望关键词全部命中）、`require_source`（回答须附检索来源）、`expect_refusal`（期望拒答，即检索无依据时 sources 为空）；未指定规则时管线正常返回非空回答即通过。逐题超时保护（`EVAL_QUESTION_TIMEOUT_SECONDS`），单题超时/失败记为不通过并写入 `details`，不中断整轮。
+
+**`POST /api/admin/evaluations`**（需 `admin.evaluations`）：同步执行评估并落库。
+
+请求：
+
+```json
+{
+  "name": "回归评估",
+  "questions": [
+    {"question": "疏散通道宽度要求？", "expected_keywords": ["疏散通道"], "require_source": true, "expect_refusal": false}
+  ]
+}
+```
+
+响应（完整对象，含逐题明细）：
+
+```json
+{
+  "id": "uuid",
+  "name": "回归评估",
+  "status": "completed",
+  "total_questions": 1,
+  "passed": 1,
+  "created_at": "2026-01-01T00:00:00Z",
+  "details": [
+    {"question": "疏散通道宽度要求？", "passed": true, "answer": "…（截断预览）", "sources_count": 2, "checks": [{"rule": "expected_keywords", "passed": true, "hit_rate": 1.0, "missed": []}, {"rule": "require_source", "passed": true}], "error": null}
+  ]
+}
+```
+
+**`GET /api/admin/evaluations`**（需 `admin.evaluations`）：分页列表（不含 `details`），按创建时间倒序。分页信封同 §11.1，item 字段：`id` / `name` / `status` / `total_questions` / `passed` / `created_at`。
+
+**`GET /api/admin/evaluations/{id}`**（需 `admin.evaluations`）：评估详情（含 `details`）。不存在返回 `404` + `NOT_FOUND`。
+
+## 12.4 插件
+
+服务端插件注册表（`plugins` 表）。内置插件以 `app.plugins.builtin.*` 模块提供 PLUGIN 契约（名称/版本/钩子），启动时幂等注册（默认启用）。启用状态以 DB 为唯一事实来源，禁用即不执行。钩子执行点：`on_task_terminal`（任务进入终态后）、`on_qa_answer`（法规问答产出回答后，可就地将免责说明等内容写入回答）。
+
+**`GET /api/admin/plugins`**（需 `admin.plugins`）：列出全部插件。
+
+响应：
+
+```json
+{
+  "items": [
+    {"id": "uuid", "name": "qa_disclaimer", "version": "1.0.0", "description": "…", "entry_point": "app.plugins.builtin.qa_disclaimer", "enabled": true}
+  ]
+}
+```
+
+**`PUT /api/admin/plugins/{id}`**（需 `admin.plugins`）：启用/停用插件。
+
+请求：
+
+```json
+{"enabled": false}
+```
+
+响应：插件对象（字段同上）。不存在返回 `404` + `NOT_FOUND`。
+
+## 12.5 Agent 与多智能体
+
+**`POST /api/agent/run`**（需 `agent.run`）：同步有界执行 Agent 目标。执行流程：规划器（LLM 拆解目标为子任务，非法输出回退为单个子任务）→ 逐个执行（每个子任务是带不同工具子集的 Agent 角色，OpenAI 兼容 function calling 循环）→ 汇总（单子任务直接采用其回答）。上限：`AGENT_MAX_STEPS`（单 Agent 最大步数）、`AGENT_MAX_SUBTASKS`（子任务数）、`AGENT_TIMEOUT_SECONDS`（总超时）。
+
+可用工具集 = 内置工具（`knowledge_search` 知识检索、`statistics_summary` 统计摘要）+ MCP 服务器工具（环境变量 `MCP_SERVERS` 配置，工具名形如 `mcp__{server}__{tool}`；单个服务器不可用只跳过并记日志）。
+
+请求：
+
+```json
+{"goal": "统计本月检查记录并查找相关法规依据"}
+```
+
+响应：
+
+```json
+{
+  "answer": "…",
+  "steps": [{"tool": "knowledge_search", "summary": "工具结果摘要（截断 200 字）"}],
+  "tools_used": ["knowledge_search", "statistics_summary"]
+}
+```
+
+错误：LLM 未配置返回 `500` + `AI_SERVICE_NOT_CONFIGURED`；超出步数/超时返回 `504` + `AGENT_STEP_LIMIT` / `AGENT_TIMEOUT`；`goal` 为空返回 `400` + `VALIDATION_ERROR`。

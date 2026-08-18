@@ -16,6 +16,10 @@ import {
   Users,
   ShieldCheck,
   ScrollText,
+  FileText,
+  Cpu,
+  FlaskConical,
+  Puzzle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -47,6 +51,10 @@ const ADMIN_NAV: NavItem[] = [
   { to: "/admin/users", label: "用户管理", icon: <Users className="h-4 w-4" /> },
   { to: "/admin/permissions", label: "权限管理", icon: <ShieldCheck className="h-4 w-4" /> },
   { to: "/admin/audit-logs", label: "审计日志", icon: <ScrollText className="h-4 w-4" /> },
+  { to: "/admin/prompts", label: "Prompt 管理", icon: <FileText className="h-4 w-4" /> },
+  { to: "/admin/models", label: "模型配置", icon: <Cpu className="h-4 w-4" /> },
+  { to: "/admin/evaluations", label: "评估运行", icon: <FlaskConical className="h-4 w-4" /> },
+  { to: "/admin/plugins", label: "插件管理", icon: <Puzzle className="h-4 w-4" /> },
 ];
 
 export function AppShell() {

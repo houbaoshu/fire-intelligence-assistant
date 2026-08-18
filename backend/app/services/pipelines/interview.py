@@ -10,8 +10,6 @@ LLM 结构化输出非法按任务失败处理，保留重试入口。
 """
 
 from app.prompts.interview import (
-    INTERVIEW_CLEANUP_SYSTEM_PROMPT,
-    INTERVIEW_STRUCTURE_SYSTEM_PROMPT,
     build_interview_cleanup_user_prompt,
     build_interview_structure_user_prompt,
 )
@@ -30,6 +28,7 @@ from app.services.pipelines.common import (
     parse_llm_json,
     warn,
 )
+from app.services.prompt_service import get_prompt
 from app.services.storage import get_storage_service
 
 
@@ -91,7 +90,7 @@ class InterviewRecordPipeline(GenerationPipeline):
         try:
             content = LLMService().chat(
                 [
-                    {"role": "system", "content": INTERVIEW_CLEANUP_SYSTEM_PROMPT},
+                    {"role": "system", "content": get_prompt("interview.CLEANUP_SYSTEM")},
                     {"role": "user", "content": build_interview_cleanup_user_prompt(raw)},
                 ]
             )
@@ -117,7 +116,7 @@ class InterviewRecordPipeline(GenerationPipeline):
         """LLM 结构化抽取问答与元数据；解析失败按任务失败处理。"""
         content = LLMService().chat(
             [
-                {"role": "system", "content": INTERVIEW_STRUCTURE_SYSTEM_PROMPT},
+                {"role": "system", "content": get_prompt("interview.STRUCTURE_SYSTEM")},
                 {
                     "role": "user",
                     "content": build_interview_structure_user_prompt(

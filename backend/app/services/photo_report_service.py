@@ -2,6 +2,7 @@
 
 import uuid
 
+from app.core.cache import invalidate_read_models
 from app.core.exceptions import AppException
 from app.models.ai_task import AITask
 from app.models.photo_report import PhotoReport
@@ -96,6 +97,7 @@ class PhotoReportService(RecordServiceBase):
         if became_finalized:
             self._audit_finalize(user, report, request_id)
         self.session.commit()
+        invalidate_read_models()  # 记录变更：失效 statistics 缓存（M7）
         self.session.refresh(report)
         return self._to_detail(report)
 
