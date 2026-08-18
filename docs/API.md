@@ -2,7 +2,7 @@
 
 # Fire Intelligence Platform API 契约（权威文档）
 
-本文档是后端 API 契约的唯一权威定义：所有端点的路径、请求与响应 schema 仅以本文档为准，`specs/` 只引用本文档，不另行定义契约。后端由 FastAPI 实现；前端不得硬编码任何 API 响应，必须调用本文档定义的端点。
+本文档是后端 API 契约的唯一权威定义：所有端点的路径、请求与响应 schema 仅以本文档为准，`specs/` 只引用本文档，不另行定义契约。后端以 Node.js + TypeScript 实现（框架选型见 `ARCHITECTURE.md` §4.2）；前端不得硬编码任何 API 响应，必须调用本文档定义的端点。
 
 # 1. 通用约定
 
@@ -32,11 +32,11 @@
 }
 ```
 
-常用 `code`：`VALIDATION_ERROR`、`UNAUTHORIZED`、`FORBIDDEN`、`NOT_FOUND`、`TASK_STATE_CONFLICT`、`INVALID_FILE_TYPE`、`FILE_TOO_LARGE`、`INTERNAL_ERROR`。
+常用 `code`：`VALIDATION_ERROR`、`UNAUTHORIZED`、`FORBIDDEN`、`NOT_FOUND`、`TASK_STATE_CONFLICT`、`INVALID_FILE_TYPE`、`FILE_TOO_LARGE`、`AI_NOT_CONFIGURED`、`INTERNAL_ERROR`。`AI_NOT_CONFIGURED` 表示请求的功能依赖未配置的 AI 能力（搭配 `400` 或 `500`），`message` 必须可读且不得编造结果。
 
 ## 1.4 异步任务
 
-耗时操作（AI 生成、知识库索引）不同步返回结果，而是返回 `task_id`。客户端轮询 `GET /api/tasks/{task_id}`（见第 8 章），任务进入 `completed` / `failed` / `cancelled` 后必须停止轮询。任务完成时，`result_data.record_id` 指向生成的业务记录。
+耗时操作（AI 生成、知识库索引）不同步返回结果，而是返回 `task_id`。客户端轮询 `GET /api/tasks/{task_id}`（见第 8 章），任务进入 `completed` / `failed` / `cancelled` 后必须停止轮询。任务完成时 `result_data` 按 `task_type` 携带结果引用：生成类任务为 `record_id`，知识库任务及其他类型的取值见第 8 章。
 
 # 2. Authentication
 
@@ -112,6 +112,8 @@
 ```json
 {"status": "ok"}
 ```
+
+**`GET /metrics`**（公开，不在 `/api` 前缀之下）：Prometheus 文本格式指标（请求计数、耗时直方图），自 Milestone 7 起提供。无请求体；响应为 Prometheus text exposition format，非 JSON。
 
 # 4. 业务记录（Inspection / Photo / Interview）
 
@@ -249,7 +251,7 @@
 }
 ```
 
-**`PUT /api/photo-report/{id}`**（更新）：可编辑字段为 `title`、`inspection_unit`、`inspection_address`、`violation_summary`、`status`、`images`，均为可选。`images` 按 `id` 匹配逐项更新，仅 `caption`、`is_selected`、`sort_order` 可编辑，不涉及图片增删。
+**`PUT /api/photo-report/{id}`**（更新）：可编辑字段为 `title`、`inspection_unit`、`inspection_address`、`violation_summary`、`status`、`images`，均为可选。`images` 按 `id` 匹配逐项更新，仅 `caption`、`detected_address`、`detected_violation`、`is_selected`、`sort_order` 可编辑（`detected_*` 字段允许人工更正识别结果），不涉及图片增删。
 
 请求示例：
 
@@ -258,7 +260,7 @@
   "violation_summary": "隐患概述（修订）",
   "status": "finalized",
   "images": [
-    {"id": "uuid", "caption": "疏散通道堆放杂物", "is_selected": true, "sort_order": 1}
+    {"id": "uuid", "caption": "疏散通道堆放杂物", "detected_violation": "疏散通道被占用（人工更正）", "is_selected": true, "sort_order": 1}
   ]
 }
 ```
@@ -305,7 +307,8 @@
   "location": "某单位会议室",
   "started_at": "2026-01-01T09:00:00Z",
   "ended_at": "2026-01-01T09:30:00Z",
-  "transcript": "询问全程转写文本",
+  "transcript": "询问全程转写文本（人工校订版）",
+  "raw_transcript": "初始机器转写原文",
   "structured_content": {"questions_and_answers": [{"question": "……", "answer": "……"}]},
   "status": "draft",
   "source_task_id": "uuid",
@@ -316,7 +319,7 @@
 
 `structured_content` 为 JSONB，内部结构由后端生成，随 DATABASE.md 对应表约束演进。
 
-**`PUT /api/interview-record/{id}`**（更新）：可编辑字段为 `title`、`interviewee_name`、`interviewer_names`、`location`、`started_at`、`ended_at`、`transcript`、`structured_content`、`status`，均为可选，未提交字段保持不变。
+**`PUT /api/interview-record/{id}`**（更新）：可编辑字段为 `title`、`interviewee_name`、`interviewer_names`、`location`、`started_at`、`ended_at`、`transcript`、`structured_content`、`status`，均为可选，未提交字段保持不变。`raw_transcript` 为生成任务写入的机器原文，只读，不得通过本端点修改。
 
 请求示例：
 
@@ -437,7 +440,7 @@
 }
 ```
 
-- `scope` 表示数据范围：`personal` / `team` / `organization` / `system`，由后端按用户角色决定，前端过滤不能扩大范围。
+- `scope` 表示数据范围：`personal` / `organization` / `system`，由后端按用户角色决定（映射规则见 DATABASE.md「用户归属」），前端过滤不能扩大范围。
 - `by_status` 只包含有数据的键；某状态计数为 0 时键可省略，前端必须区分「零」「缺失」与「不可用」。
 - `tasks.by_status` 的取值与 DATABASE.md `ai_tasks` 表状态枚举一致。
 
@@ -465,7 +468,11 @@
 ```
 
 - `progress` 取值 0–100，单次执行内单调不减。
-- `completed` 时 `result_data` 携带安全结果引用，生成类任务为 `{"record_id": "uuid"}`。
+- `completed` 时 `result_data` 携带安全结果引用，按 `task_type` 取值：
+  - 生成类任务（`inspection_record_generation` / `photo_report_generation` / `interview_record_generation`）：`{"record_id": "uuid"}`，前端据此加载业务记录。
+  - `knowledge_indexing`：`{"document_id": "uuid"}`，前端据此刷新文档列表。
+  - `knowledge_reindexing`：`{"indexed_count": 8, "failed_count": 1}`，前端据此刷新知识库状态。
+  - 其他任务类型：`result_data` 可为 `null` 或携带不含敏感内容的安全摘要。
 - `failed` 时 `error_code` 与 `error_message` 必填，`error_message` 必须可读且不含敏感信息。
 
 **`GET /api/tasks`**（列表）：返回当前用户有权查看的最近任务，按创建时间倒序。
@@ -509,3 +516,12 @@
 | 图片 | `.jpg`、`.jpeg`、`.png` | 20MB | 预留（v1 无上传入口） |
 | 音频 | `.wav`、`.mp3`、`.m4a` | 200MB | 询问记录生成 |
 | 文档 | `.pdf`、`.doc`、`.docx`、`.ppt`、`.pptx`、`.txt`、`.md` | 50MB | 知识库上传 |
+
+# 10. Files（文件访问）
+
+**`GET /api/files/{id}`**：按 `uploaded_files` 记录 ID 返回原始文件内容，用于拍照报告候选帧预览、询问录音回放等需要展示源文件的场景。
+
+- 需认证；后端按文件归属与关联业务记录的权限强制执行授权（见 DATABASE.md「数据归属」）。
+- 响应为文件流而非 JSON：`Content-Type` 按存储的 `mime_type` 返回，`Content-Disposition: inline`。
+- 文件不存在、已删除或当前用户无权限时一律返回 `404`，不暴露文件存在性。
+- 响应不得泄露内部存储路径；禁止使用客户端提供的路径直接读取存储。

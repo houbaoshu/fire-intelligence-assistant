@@ -53,7 +53,7 @@
 
 后端
 
-- FastAPI 初始化
+- Node.js + TypeScript 后端初始化（框架按 ARCHITECTURE.md §7 选定）
 - 配置
 - 日志
 - API 约定

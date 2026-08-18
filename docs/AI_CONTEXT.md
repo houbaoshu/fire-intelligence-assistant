@@ -128,13 +128,13 @@ Embedding 模型仅用于检索（retrieval），不用于生成。
 
 步骤：
 
-1. Video 经 Vision 分析画面、OCR 提取文字。
-2. LLM 综合产出 Structured JSON。
+1. 音频与帧抽取：音频经 Speech Recognition 转写，帧经 Vision 分析画面、OCR 提取文字（语音识别与视觉分析并行）。
+2. LLM 综合转写文本与视觉证据，产出 Structured JSON。
 3. User Review：用户确认/修改结构化结果。
 4. 套用 Word Template 生成文档。
 5. Download。
 
-链路：`Video → Vision → OCR → LLM → Structured JSON → User Review → Word Template → Download`
+链路：`Video → 音频/帧抽取 →（Speech Recognition ∥ Vision）→ OCR → LLM → Structured JSON → User Review → Word Template → Download`
 
 ## Photo Report Generation
 
@@ -152,7 +152,7 @@ Embedding 模型仅用于检索（retrieval），不用于生成。
 
 ## Interview Record Generation
 
-输入：Video 或 Audio。输出：Interview Record（询问笔录文档）。
+输入：Audio（v1 仅音频；视频来源为后续版本候选，契约见 API.md）。输出：Interview Record（询问笔录文档）。
 
 步骤：
 

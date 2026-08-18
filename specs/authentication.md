@@ -52,7 +52,7 @@
 - 前端不得仅凭隐藏导航或按钮做授权，所有授权以后端校验为准（通用规则见 specs/_common.md，本功能为首要执行点）。
 - 错误信息不得造成账号枚举风险：不得透露某个邮箱是否已注册。
 - 注册密码强度策略以后端为准；前端校验只改善反馈，后端必须复核。
-- token 不得出现在 URL、分析事件或错误详情中；token 存储优先使用 HttpOnly cookie，否则必须显式记录存储方式与对应的 XSS 缓解措施。
+- token 不得出现在 URL、分析事件或错误详情中。v1 契约在响应 body 返回 token（见 API.md §2，无 Set-Cookie 行为），前端须将所选的浏览器存储方式与对应的 XSS 缓解措施显式记录在 `frontend/README.md`；改用 HttpOnly cookie 属于契约变更，须先修订 API.md。
 
 ## UI 结构
 

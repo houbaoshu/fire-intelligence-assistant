@@ -116,8 +116,9 @@ caption 必须：
 - `POST /api/photo-report/generate` — 生成，`multipart/form-data`：`video`（必填，单个检查视频）+ `remarks`（可选），返回 `{task_id}`。
 - `GET /api/photo-report` — 列表（分页）。
 - `GET /api/photo-report/{id}` — 详情（`images` 元素含 `frame_timestamp`）。
-- `PUT /api/photo-report/{id}` — 更新；图片按 `id` 逐项更新，仅 `caption` / `is_selected` / `sort_order` 可编辑，不涉及图片增删。
+- `PUT /api/photo-report/{id}` — 更新；图片按 `id` 逐项更新，仅 `caption` / `detected_address` / `detected_violation` / `is_selected` / `sort_order` 可编辑，不涉及图片增删。
 - `GET /api/photo-report/{id}/download` — 下载 Word 文档。
+- `GET /api/files/{id}` — 按 `uploaded_file_id` 获取候选帧图片内容，用于图片集预览（受控文件访问，schema 见 API.md §10）。
 - `GET /api/tasks/{task_id}` — 任务轮询（协议见 specs/_common.md）。
 
 ## 数据影响

@@ -2,7 +2,7 @@
 
 # Fire Intelligence Platform 系统架构
 
-> 现状说明：`frontend/` 已按本文 §4/§6 初始化（Lovable 导入的 TanStack Start 项目）；`backend/` 尚未初始化，按本文 §7 的目标结构实现。
+> 现状说明：`frontend/` 与 `backend/` 均未实现，仓库当前只有权威文档。前端代码必须由模型依据本文档与 `specs/` 从零设计并生成，禁止复制任何外部脚手架产物；后端按本文 §7 的目标结构以 Node.js + TypeScript 实现。
 
 本文档是"架构"类别的唯一权威文件，定义系统边界、前后端职责、模块组织、数据流、AI 编排、异步任务与存储职责。编码规则见 `AGENTS.md`，接口契约见 `API.md`，表结构与枚举见 `DATABASE.md`。
 
@@ -31,11 +31,11 @@ Fire Intelligence Platform 是一个面向消防安全检查工作的 AI 辅助�
 User
   |
   v
-TanStack Start Frontend (React)
+Frontend（Web SPA，技术栈由实现时按 §4.1 原则选定）
   |
   | HTTPS / REST API
   v
-FastAPI Backend
+Node.js Backend (TypeScript)
   |
   +-------------------+
   |                   |
@@ -110,16 +110,13 @@ AI 组件只提供建议与结构化抽取结果。AI 生成的内容不得直�
 
 ### 4.1 前端
 
-前端技术栈（与 `frontend/` 实际初始化一致）：
+本文档**不钉死前端框架**。前端技术栈由模型在首次实现时按以下选型原则自行决定，并在 `frontend/README.md` 中记录最终选择与理由：
 
-- TanStack Start（`@tanstack/react-start`）
-- TanStack Router（文件路由）
-- React
-- TypeScript
-- Vite
-- Tailwind CSS
-- shadcn/ui
-- TanStack Query
+1. 使用当前主流、社区活跃、文档完善的方案；优先 TypeScript 严格模式。
+2. 选型必须覆盖以下能力：组件化 UI、声明式路由、服务端状态管理（缓存 / 轮询 / 失效）、表单与校验、样式方案、构建与开发服务器。
+3. 不依赖任何低代码 / 在线生成平台（如 Lovable、v0 等）的产物或运行时；全部源码必须在本仓库内可读、可维护。
+4. 组件库与图标库可选，但不得以"引入整套模板"代替设计；页面结构必须来自 `specs/` 的功能规格。
+5. 构建产物必须是静态资源或可独立部署的应用，与后端部署相互独立。
 
 前端代码必须独立于具体 AI 提供商。
 
@@ -127,13 +124,13 @@ AI 组件只提供建议与结构化抽取结果。AI 生成的内容不得直�
 
 后端技术栈：
 
-- FastAPI
-- Pydantic
-- SQLAlchemy
-- Alembic
+- Node.js（LTS 版本）
+- TypeScript（strict 模式）
+- HTTP 框架：由实现时选定（如 NestJS / Hono / Fastify），但必须支撑 §7 的分层架构与依赖注入能力
+- ORM 与 migration 工具：由实现时选定（如 Drizzle / Prisma / TypeORM），schema 变更一律走 migration（见 `DATABASE.md`）
 - PostgreSQL
 
-异步处理：轻量开发任务可用 FastAPI background tasks；生产负载使用基于 Redis 的任务队列（Celery / Dramatiq / RQ 或配置的其他任务系统）。长耗时的视频与文档任务不得阻塞正常 HTTP 请求。
+异步处理：轻量任务可用进程内任务执行器；生产负载使用基于 Redis 的任务队列（如 BullMQ 或配置的其他任务系统）。长耗时的视频与文档任务不得阻塞正常 HTTP 请求。
 
 ### 4.3 AI 服务
 
@@ -147,9 +144,9 @@ AI 能力一律通过后端服务抽象访问，走 OpenAI 兼容 API。能力�
 
 关系数据库（PostgreSQL）保存：用户、权限、检查记录、拍照报告、询问记录、AI 任务状态、文件元数据、知识文档元数据、生成文档元数据、审计日志。
 
-对象存储（Supabase Storage 或本地存储）保存：上传的视频 / 图片 / 音频、源文档、生成的 Word / PDF 文档、抽取的关键帧、临时处理文件。
+对象存储（Supabase Storage、S3 兼容存储或本地存储）保存：上传的视频 / 图片 / 音频、源文档、生成的 Word / PDF 文档、抽取的关键帧、临时处理文件。
 
-向量数据库（Chroma + 本地 Embedding 模型）保存：文档 chunk 向量、chunk 元数据、来源引用、检索标识。向量数据库不得被当作主业务数据库使用。
+向量数据库（默认 Chroma，或经配置替换的其他向量存储；Embedding 模型与提供商一律来自配置，见 §4.3）保存：文档 chunk 向量、chunk 元数据、来源引用、检索标识。向量数据库不得被当作主业务数据库使用。
 
 ---
 
@@ -163,16 +160,16 @@ AI 能力一律通过后端服务抽象访问，走 OpenAI 兼容 API。能力�
 
 ## 6. 前端架构
 
-推荐分层：
+前端架构以**能力分层**定义，不绑定具体框架。无论最终选择哪个框架，代码组织必须能清晰映射到以下层次：
 
 ```text
-Routes
+Pages / Routes
   |
   v
 Components
   |
   v
-Hooks
+State Logic（状态逻辑层）
   |
   v
 API Services
@@ -181,64 +178,36 @@ API Services
 Central API Client
 ```
 
-### 6.1 Routes
+### 6.1 Pages / Routes
 
-Route（页面）负责页面布局、功能组件组合、路由级状态与结果展示。Route 中不应堆积大量 API 调用或数据转换逻辑。
+页面负责页面布局、功能组件组合、路由级状态与结果展示。页面中不应堆积大量 API 调用或数据转换逻辑。
+
+必须覆盖的页面集合以 `specs/` 各功能规格为唯一定义来源（当前包括：登录与注册、Dashboard（含统计）、法规问答、检查记录、拍照报告、询问笔录、知识库、任务中心、设置）；新增或合并页面时先修改对应规格，本节不另行枚举。
 
 ### 6.2 Components
 
-组件负责可复用的 UI 行为。代表性组件：`FileUploader`、`TaskProgress`、`BackendStatus`、`ResultPreview`、`SourceCitation`、`DocumentDownloadButton`、`EditableField`、`EmptyState`、`ErrorState`。
+组件负责可复用的 UI 行为。必须具备的组件能力（命名与拆分由实现决定）：`FileUploader`、`TaskProgress`、`BackendStatus`、`ResultPreview`、`SourceCitation`、`DocumentDownloadButton`、`EditableField`、`EmptyState`、`ErrorState`。
 
 避免创建职责几乎相同的多个组件。
 
-### 6.3 Hooks
+### 6.3 状态管理
 
-Hook 封装可复用的 UI 状态与服务端状态行为。代表性 Hook：`useHealth`、`useTaskStatus`、`useFileUpload`、`useRegulationQuery`、`useInspectionRecord`、`usePhotoReport`、`useKnowledgeDocuments`。
-
-TanStack Query 统一管理后端服务端状态；本地 React state 只管理临时 UI 状态。
+状态逻辑层（hooks / composables / stores，命名按所选框架惯例）封装可复用的 UI 状态与服务端状态行为。服务端状态（后端数据、任务进度、缓存与轮询）必须由统一的异步状态方案管理；本地组件状态只管理临时 UI 状态。任务轮询规则见 §9.2。
 
 ### 6.4 API Services
 
-API service 定义对 FastAPI 后端的调用。代表性 service：`authService`、`healthService`、`qaService`、`inspectionService`、`photoReportService`、`interviewService`、`knowledgeService`、`taskService`。
+API service 定义对后端 REST API 的调用，按业务模块划分（认证、健康检查、法规问答、检查记录、拍照报告、询问笔录、知识库、任务、统计）。
 
-页面组件中不得直接调用 `fetch`，统一经由唯一的中央 API client。
+页面与组件中不得直接发起 HTTP 请求，统一经由唯一的中央 API client；API Base URL 必须来自构建时注入的环境变量。
 
 ### 6.5 前端目录结构
 
-`frontend/src/` 实际结构：
+目录结构由实现时按所选框架惯例自行设计，但必须满足：
 
-```text
-frontend/
-└── src/
-    ├── routes/            # TanStack Router 文件路由，每个文件一个页面
-    │   ├── __root.tsx
-    │   ├── index.tsx
-    │   ├── inspection-record.tsx
-    │   ├── interview-record.tsx
-    │   ├── knowledge-base.tsx
-    │   ├── photo-report.tsx
-    │   ├── regulation-qa.tsx
-    │   └── settings.tsx
-    ├── components/
-    │   ├── common/        # 业务通用组件（FileUpload、TaskProgress 等）
-    │   ├── layout/        # 布局组件（AppShell）
-    │   └── ui/            # shadcn/ui 组件
-    ├── hooks/             # 可复用 Hook
-    ├── lib/
-    │   ├── api-client.ts  # 中央 API client
-    │   ├── services/      # 各业务模块的 API service
-    │   └── utils.ts
-    ├── router.tsx         # 创建 router（注入 QueryClient）
-    ├── routeTree.gen.ts   # 路由树，由 TanStack Router 自动生成，禁止手改
-    ├── server.ts          # TanStack Start 服务端入口
-    ├── start.ts           # TanStack Start 启动配置
-    └── styles.css
-```
-
-规划补充：
-
-- API service 当前位于 `lib/services/`；如规模增长可提升为顶层 `services/` 目录，保持"一个业务模块一个 service 文件"的约定。
-- 共享 TypeScript 类型规划放入 `types/` 目录（待建），避免类型散落在组件中。
+- 上述五个层次各有明确归属，职责不混淆。
+- 共享类型集中存放，避免类型散落在组件中。
+- 一个业务模块一个 API service 文件。
+- 结构在 `frontend/README.md` 中说明。
 
 ---
 
@@ -297,28 +266,28 @@ StorageService
 
 ### 7.6 后端目标目录结构
 
-`backend/` 尚未初始化，以下为目标结构：
+`backend/` 尚未实现，以下为 Node.js + TypeScript 目标结构（具体框架选定后可微调，但分层职责必须保留）：
 
 ```text
 backend/
-├── app/
-│   ├── main.py
-│   ├── api/
-│   │   ├── dependencies.py
-│   │   └── routers/
-│   ├── core/
-│   │   ├── config.py
-│   │   ├── logging.py
-│   │   ├── security.py
-│   │   └── exceptions.py
-│   ├── models/
-│   ├── schemas/
-│   ├── repositories/
+├── src/
+│   ├── main.ts               # 进程入口
+│   ├── app.ts                # HTTP 应用组装
+│   ├── config/               # 统一配置加载（环境变量）
+│   ├── common/               # 错误、日志、中间件、守卫
+│   ├── modules/              # 业务模块：router/controller + service + repository
+│   │   ├── auth/
+│   │   ├── inspection-record/
+│   │   ├── photo-report/
+│   │   ├── interview-record/
+│   │   ├── knowledge/
+│   │   ├── tasks/
+│   │   └── statistics/
 │   ├── services/
-│   │   ├── ai/
-│   │   ├── storage/
-│   │   ├── documents/
-│   │   └── tasks/
+│   │   ├── ai/               # LLM / Vision / OCR / Speech / Embedding / Reranker
+│   │   ├── storage/          # 对象存储抽象
+│   │   ├── documents/        # 文档模板渲染
+│   │   └── tasks/            # 任务队列与执行器
 │   ├── rag/
 │   │   ├── parsers/
 │   │   ├── chunking/
@@ -326,12 +295,12 @@ backend/
 │   │   ├── retrieval/
 │   │   └── reranking/
 │   └── utils/
+├── migrations/               # 数据库 migration（工具由实现选定）
 ├── data/
-│   ├── templates/
+│   ├── templates/            # Word 模板
 │   └── temporary/
-├── alembic/
 ├── tests/
-└── pyproject.toml
+└── package.json
 ```
 
 ---
@@ -346,13 +315,13 @@ backend/
 
 目标 API 模块（与 `API.md` 对应）：
 
-`/api/auth`、`/api/qa`、`/api/inspection-record`、`/api/photo-report`、`/api/interview-record`、`/api/knowledge`、`/api/tasks`、`/api/statistics`
+`/api/auth`、`/api/qa`、`/api/inspection-record`、`/api/photo-report`、`/api/interview-record`、`/api/knowledge`、`/api/tasks`、`/api/statistics`、`/api/files`
 
 接口细节以 `API.md` 为准。
 
 ### 8.1 标准请求流
 
-`Frontend Component → TanStack Query Hook → Frontend API Service → FastAPI Router → Application Service → Database / AI / Storage`
+`Frontend Component → State Hook → Frontend API Service → HTTP Router → Application Service → Database / AI / Storage`
 
 ### 8.2 标准错误流
 
@@ -398,7 +367,7 @@ RAG 子系统分为索引管线与查询管线。
 
 `源文档 → 文件解析 → 文档规范化 → 语义切分（chunking） → 元数据增强 → Embedding → 向量数据库`
 
-chunk 元数据应保留：document ID、title、document type、page number、article number（条文号）、section、source path、version、effective date、issuing authority。
+chunk 必须保留的元数据清单以 `specs/knowledge-base.md`「字段清单（chunk 元数据）」为唯一定义，本文不重复列举。
 
 ### 10.2 查询管线
 
@@ -533,11 +502,11 @@ LLM、OCR、语音识别、embedding、reranker、对象存储、向量数据库
 
 ### 18.6 部署
 
-开发环境：浏览器 → Vite dev server → 本地 FastAPI → 本地 PostgreSQL / 对象存储 / 向量数据库 / AI 服务。生产环境：浏览器 → CDN → 反向代理 / API 网关 → FastAPI → PostgreSQL / 对象存储 / 向量数据库 / Redis 任务队列 / 后台 Worker / 外部 AI 提供商；容器化部署。前后端部署保持相互独立。
+开发环境：浏览器 → 前端 dev server → 本地 Node.js 后端 → 本地 PostgreSQL / 对象存储 / 向量数据库 / AI 服务。生产环境：浏览器 → CDN → 反向代理 / API 网关 → Node.js 后端 → PostgreSQL / 对象存储 / 向量数据库 / Redis 任务队列 / 后台 Worker / 外部 AI 提供商；容器化部署。前后端部署保持相互独立。
 
 ### 18.7 扩展性
 
-初期可作为单个 FastAPI 应用运行；负载增长后再拆分 API Server / AI Worker / Video Worker / Document Worker / Knowledge Index Worker / Scheduler。在确有需要之前不引入分布式复杂度；保持模块边界干净以便未来拆分。
+初期可作为单个 Node.js 应用运行；负载增长后再拆分 API Server / AI Worker / Video Worker / Document Worker / Knowledge Index Worker / Scheduler。在确有需要之前不引入分布式复杂度；保持模块边界干净以便未来拆分。
 
 ### 18.8 可靠性
 
@@ -562,4 +531,4 @@ LLM、OCR、语音识别、embedding、reranker、对象存储、向量数据库
 7. RAG 启用时，禁止不经检索的法规问答。
 8. 禁止未经用户审阅就将 AI 文档定稿。
 9. 禁止没有 migration 的 schema 变更。
-10. 禁止重写已发布的 Lovable Git 历史。
+10. 前端禁止依赖任何低代码 / 在线生成平台的产物、运行时或锁定文件；前端源码必须由模型依据本文档与 `specs/` 生成。

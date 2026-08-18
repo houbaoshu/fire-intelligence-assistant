@@ -4,6 +4,17 @@
 
 权威边界：端点与 schema 定义权在 API.md；表结构与枚举定义权在 DATABASE.md；编码规则在 AGENTS.md。本文件不重复这些定义，只做功能规格的公共行为约定。
 
+## 前端能力基线
+
+前端框架与库由实现时按 ARCHITECTURE.md §4.1 的选型原则决定，本文件与 specs/* 均不指定具体框架。无论选型如何，每个前端页面必须满足：
+
+- 技术选型、目录结构与启动方式记录在 `frontend/README.md`，首次实现时一并交付。
+- 页面具备 loading / empty / error / success 状态；禁止硬编码假数据代替真实 API 调用。
+- 所有后端访问经由统一 API client；组件不直接发起 HTTP 请求。
+- 未认证访问受保护页面时跳转登录页；界面级权限提示以后端授权结果为准。
+- 布局适配桌面与移动宽度；交互控件具备键盘可用性与可读焦点状态。
+- 界面文案使用简体中文；状态不得仅用颜色表达。
+
 ## 角色与权限
 
 角色枚举定义见 DATABASE.md `users` 表（`admin` / `supervisor` / `inspector` / `viewer`）。各功能规格不再重复角色表，只声明本功能各操作所需的最低角色。
@@ -20,7 +31,7 @@
 - 响应 schema、状态枚举（`pending` / `queued` / `processing` / `completed` / `failed` / `cancelled`）、`task_type` 取值见 API.md §8 与 DATABASE.md `ai_tasks` 表。
 - 任务到达终态（`completed` / `failed` / `cancelled`）后前端必须停止轮询。
 - 页面刷新或重新进入后，前端必须能通过任务查询恢复进度展示，不丢失进行中的任务状态。
-- `completed` 时从 `result_data.record_id` 取业务记录 ID 并跳转或加载详情。
+- `completed` 时按 `task_type` 从 `result_data` 取结果引用（生成类任务取 `record_id` 并跳转或加载详情；知识库任务取值见 API.md §8）。
 - `failed` 时展示可读的 `error_message`，不得静默失败。
 - 重试与取消的语义（哪些状态可 retry / cancel）见 API.md §8，各规格不重复定义。
 
@@ -57,6 +68,6 @@
 
 每个功能规格的功能性验收标准之外，以下各项对所有功能适用，各规格不再重复：
 
-- 页面具备 loading / empty / error 三态，无硬编码假数据。
+- 页面具备 loading / empty / error / success 四态（见本文件「前端能力基线」），无硬编码假数据。
 - 构建、lint、类型检查全部通过；后端 migration、测试通过。
 - 不满足权限的操作被后端拒绝并返回可读错误。

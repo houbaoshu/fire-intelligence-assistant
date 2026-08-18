@@ -63,7 +63,7 @@
 
 组件顺序：页面说明 → 提问输入框 → 回答卡片 → 来源列表（可展开来源详情）。
 
-状态流转：empty（引导用户输入法规问题）→ retrieving（检索中）→ generating（生成中）→ success（展示回答与来源）；另有 no-evidence（明确的无证据警告）与 error（可读错误 + 重试；后端不可用时说明情况并保留问题文本）。loading / empty / error 三态通用要求见 specs/_common.md。
+状态流转：empty（引导用户输入法规问题）→ retrieving（检索中）→ generating（生成中）→ success（展示回答与来源）；另有 no-evidence（明确的无证据警告）与 error（可读错误 + 重试；后端不可用时说明情况并保留问题文本）。loading / empty / error / success 四态通用要求见 specs/_common.md「前端能力基线」。
 
 交互要求：键盘可完整操作；回答更新与错误需对辅助技术可感知（announce）；不得以聊天式装饰弱化引用的可见性；不得把预设的"建议回答"伪装成生成结果。
 

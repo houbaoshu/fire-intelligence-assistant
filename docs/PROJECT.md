@@ -40,17 +40,17 @@ Fire Intelligence Platform 是面向消防安全检查人员的 AI 辅助系统�
 
 # 前端模块
 
-目标前端模块：
+目标前端模块（页面级定义以 specs/ 各功能规格为准）：
 
-- Dashboard
+- Dashboard（含统计看板）
 - Fire Regulation QA
 - Inspection Record
 - Photo Report
 - Interview Record
 - Knowledge Base
-- Statistics
+- Task Center（任务中心，见 specs/workflow.md）
 - Settings
-- Authentication
+- Authentication（登录与注册）
 
 ---
 
@@ -96,18 +96,19 @@ RESTful API，JSON 响应。
 
 前端
 
-- VITE_API_BASE_URL
+- API Base URL：通过构建时环境变量注入，变量名以所选框架惯例为准（由实现时在 `frontend/README.md` 记录）。前端环境变量均为公开配置，绝不包含 secret。
 
-后端
+后端（代表性清单，与 `backend/.env.example` 保持一致）
 
-- OPENAI_API_KEY
-- LLM_MODEL
-- VISION_MODEL
-- EMBEDDING_MODEL
-- DATABASE_URL
-- SUPABASE_URL（仅 Supabase 方案需要）
-- SUPABASE_KEY（仅 Supabase 方案需要）
+- `DATABASE_URL`
+- `JWT_SECRET` / `JWT_ALGORITHM` / `ACCESS_TOKEN_EXPIRE_MINUTES` / `REFRESH_TOKEN_EXPIRE_DAYS`
+- `CORS_ORIGINS` / `REGISTRATION_ENABLED`
+- `AI_LLM_API_KEY` / `AI_LLM_MODEL` / `AI_LLM_BASE_URL`
+- `AI_VISION_*` / `AI_OCR_*` / `AI_SPEECH_*` / `AI_EMBEDDING_*` / `AI_RERANKER_*`（同 `AI_LLM_*` 三段式命名）
+- `STORAGE_PROVIDER` / `STORAGE_DIR`（或 `S3_*` / `SUPABASE_*`）
+- `VECTOR_STORE_PROVIDER` / `VECTOR_STORE_DIR`
+- `DEFAULT_ADMIN_EMAIL` / `DEFAULT_ADMIN_PASSWORD`
 
-文件存储支持 Supabase Storage 或本地存储，由环境变量配置二选一。
+文件存储支持 Supabase Storage、S3 兼容存储或本地存储，由环境变量配置选择。
 
 严禁在代码中硬编码任何密钥、密码、URL 或 Token。

@@ -9,10 +9,9 @@
 # 数据库技术
 
 - 关系数据库：PostgreSQL
-- ORM：SQLAlchemy
-- Schema 校验：Pydantic
-- Migration 工具：Alembic
-- 文件存储：Supabase Storage、S3 兼容对象存储、本地存储（仅限开发环境）
+- ORM 与 Migration 工具：由后端实现时选定（Node.js 生态，如 Drizzle / Prisma / TypeORM），选型记录于 `backend/README.md`
+- 请求 Schema 校验：由后端统一处理（如 zod 或框架自带校验）
+- 文件存储：Supabase Storage、S3 兼容对象存储、本地存储（仅限开发或单实例自托管；多实例生产部署必须使用对象存储）
 - 向量数据库：Chroma 或其他已配置的向量存储
 
 向量数据库仅保存检索数据，业务数据必须保留在 PostgreSQL 中。
@@ -27,7 +26,7 @@
 - AI 任务记录与最终业务文档分开保存。
 - 大文件存入对象存储，不直接存入数据库列。
 - 数据库中保存文件元数据与存储路径。
-- 每次 schema 变更都必须包含 Alembic migration，禁止绕过 migration 手工修改表结构。
+- 每次 schema 变更都必须包含 migration，禁止绕过 migration 手工修改表结构。
 - 已应用到共享环境的 migration 不得编辑，应创建新的修正 migration。
 
 # 命名规范
@@ -312,7 +311,8 @@ failed
 | location | VARCHAR | 否 | 访谈地点 |
 | started_at | TIMESTAMP | 否 | 开始时间 |
 | ended_at | TIMESTAMP | 否 | 结束时间 |
-| transcript | TEXT | 否 | 语音转写文本 |
+| transcript | TEXT | 否 | 转写文本（人工校订版，初始内容与 raw_transcript 相同） |
+| raw_transcript | TEXT | 否 | 初始机器转写原文（生成任务完成时写入，此后只读保留，不得被编辑覆盖） |
 | structured_content | JSONB | 否 | 结构化访谈内容 |
 | status | VARCHAR | 是 | 记录状态 |
 | source_task_id | UUID | 否 | AI 任务 |
@@ -502,7 +502,7 @@ outdated
 - 应尽量使用 `checksum` 检测重复文档。
 - 重建索引不得静默产生重复的生效版本。
 - 删除知识文档时必须同时从向量索引中移除。
-- 列名使用 `doc_metadata` 而非 `metadata`，以避免与 SQLAlchemy Declarative 的保留属性名 `metadata` 冲突。
+- 列名使用 `doc_metadata` 而非 `metadata`：`metadata` 是多个主流 ORM 的保留属性名，避免冲突。
 
 # 表：knowledge_index_jobs
 
@@ -569,15 +569,12 @@ document.download
 
 # 可选表
 
-以下表可在需要时增加：
+以下表可在需要时增加（在对应功能被需要之前不要创建）：
 
 - inspection_units
-- model_configurations
-- prompt_versions
-- evaluation_results
 - notifications
 
-企业管理的 `organizations` / `departments` / `permissions` / `role_permissions` 已在 Milestone 6 落地为核心表,定义见下方。其余表在对应功能被需要之前不要创建。
+企业管理的 `organizations` / `departments` / `permissions` / `role_permissions` 为 Milestone 6 的规划表，定义见下方。下方 Milestone 6 / 8 的表与机制均为未来规划，在对应里程碑启动前不得创建或实现；其余表在对应功能被需要之前不要创建。
 
 # 表：organizations（Milestone 6）
 
@@ -601,7 +598,7 @@ document.download
 
 # 表：permissions / role_permissions（Milestone 6）
 
-权限以角色(`users.role`)为基准,权限码通过 `role_permissions` 关联到角色。默认权限矩阵在 `app/services/permission_service.py` 维护(幂等种子)。
+权限以角色(`users.role`)为基准,权限码通过 `role_permissions` 关联到角色。默认权限矩阵由后端权限 service 以幂等种子方式维护（实现位置按 ARCHITECTURE.md §7 的后端结构确定）。
 
 - `permissions`：`code`(唯一)、`name`、`description`。
 - `role_permissions`：`role`(users.role 取值)、`permission_code`,联合唯一。
@@ -610,14 +607,14 @@ document.download
 
 `users` 表新增可空列：`organization_id`(引用 organizations.id)、`department_id`(引用 departments.id)。
 
-统计范围规则：admin=system；supervisor=organization(按记录创建者所属组织过滤)；inspector/viewer=personal。未分配组织的 supervisor 默认查看全部。
+统计范围规则：admin=system；supervisor=organization(按记录创建者所属组织过滤)；inspector/viewer=personal。未分配组织的 supervisor 按 system 范围处理。
 
 
 
 
 # 表：prompt_versions（Milestone 8）
 
-版本化 Prompt 目录,初始种子来自 `app/prompts/*.py`,管理员可编辑。
+版本化 Prompt 目录,初始种子来自后端 Prompt 模块（Prompt 按 AGENTS.md 规则单独存放）,管理员可编辑。
 
 | 列名 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
@@ -658,7 +655,7 @@ document.download
 
 # 表：plugins（Milestone 8）
 
-服务端插件注册表。插件以 `app.plugins.builtin.*` 模块形式提供 PLUGIN 契约(名称/版本/钩子),在平台定义点执行。
+服务端插件注册表。插件以后端内置模块形式提供 PLUGIN 契约(名称/版本/钩子),在平台定义点执行。
 
 | 列名 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
@@ -670,11 +667,11 @@ document.download
 
 # MCP（Milestone 8）
 
-MCP 服务器通过环境变量 `MCP_SERVERS`(JSON 数组)配置,客户端实现于 `app/mcp/client.py`(HTTP JSON-RPC),工具以 Agent 工具形式暴露。
+MCP 服务器通过环境变量 `MCP_SERVERS`(JSON 数组)配置,MCP 客户端以后端服务模块实现(HTTP JSON-RPC),工具以 Agent 工具形式暴露。
 
 # Agent（Milestone 8）
 
-Agent 基于 OpenAI 兼容 function calling(`app/services/ai/agent.py`),内置工具:知识检索、统计摘要。多智能体编排由 AgentOrchestrator 实现,任务经规划器拆解执行。
+Agent 基于 OpenAI 兼容 function calling(实现于后端 AI service 层),内置工具:知识检索、统计摘要。多智能体编排由后端编排服务实现,任务经规划器拆解执行。
 
 # 索引
 

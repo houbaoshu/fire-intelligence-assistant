@@ -4,10 +4,10 @@
 
 ## 现状说明
 
-- frontend/ 已初始化为 TanStack Start + React + TypeScript + shadcn/ui 项目（Lovable 导入）。
-- backend/ 尚未初始化；实现前以 docs/ARCHITECTURE.md 的目标架构为准。
+- frontend/ 尚未实现：必须由模型依据 docs/ARCHITECTURE.md §4.1/§6 与 specs/ 从零选型并生成，禁止复制外部脚手架或低代码平台产物。
+- backend/ 尚未实现：按 docs/ARCHITECTURE.md §7 以 Node.js + TypeScript 实现。
 
-改动前必须先理解现有架构与实现。
+动手前必须先理解权威文档定义的目标架构。
 
 ## 文档单一信息源
 
@@ -49,27 +49,26 @@
 
 ## 目录职责（Folder Responsibilities）
 
-前端（frontend/src/，TanStack Start 文件路由）：
+前端（frontend/，框架由实现时按 ARCHITECTURE.md §4.1 选定）：
 
-- routes/：页面与路由组件。
+- 页面 / 路由：页面布局与功能组件组合。
 - components/：可复用 UI。
-- hooks/：可复用 React hooks。
-- services/：HTTP 请求。
+- 状态逻辑层：可复用状态逻辑（hooks / composables / stores，按所选框架惯例）。
+- services/：HTTP 请求（一个业务模块一个 service 文件）。
 - lib/：工具函数。
 - types/：共享 TypeScript 类型。
 
-注：router.tsx 为路由入口；routeTree.gen.ts 由框架自动生成，禁止手工编辑。
+后端（backend/，Node.js + TypeScript）：
 
-后端（backend/）：
-
-- routers/：HTTP API。
-- services/：业务逻辑。
-- models/：数据库模型。
-- schemas/：Pydantic 模型。
-- core/：配置。
-- utils/：工具。
-- rag/：知识库。
-- templates/：Word 模板。
+- modules/：按业务模块组织 HTTP 入口与业务逻辑（router/controller + service + repository）。
+- services/ai/：AI 能力抽象。
+- services/storage/：对象存储抽象。
+- services/documents/：文档模板渲染。
+- services/tasks/：任务队列与执行器。
+- config/：统一配置加载。
+- common/：错误、日志、中间件。
+- rag/：知识库管线。
+- data/templates/：Word 模板。
 
 禁止混淆各目录的职责。
 
@@ -114,7 +113,7 @@
 - Word 模板必须存放于 backend/data/templates/。
 - 生成的文书由后端产出。
 - 前端只负责：`Upload → Monitor progress → Preview → Download`。
-- 禁止在 React 中生成 Word 文档。
+- 禁止在前端生成 Word 文档。
 
 ## 视频处理（Video Processing）
 
@@ -128,25 +127,25 @@
 - 必须显示可读的错误信息。
 - 禁止静默忽略失败。
 
-## TypeScript
+## TypeScript（前后端通用）
 
-- 优先使用严格类型。
+- 使用 strict 模式与严格类型。
 - 避免使用 any。
 - 删除未使用的 import。
 - 保持构建干净。
 
-## Python
+## 后端（Node.js）
 
-- 使用类型标注（type hints）。
-- 使用 Pydantic。
-- 保持 router 轻薄。
-- 业务逻辑必须放在 services 中。
+- 请求 / 响应必须使用 schema 校验（如 zod 或框架自带校验机制）。
+- 保持 router/controller 轻薄。
+- 业务逻辑必须放在 service 中。
+- 依赖通过注入方式传递，禁止在业务代码中直接 new 外部服务客户端。
 
 ## 数据库（Database）
 
 - 除非必要，禁止编写原生 SQL。
-- 必须使用 SQLAlchemy。
-- 必须创建 migration。
+- 必须使用 ORM / 查询构建器访问数据库。
+- 必须创建 migration；schema 变更一律走 migration。
 - 禁止破坏现有 schema。
 
 ## 环境变量（Environment Variables）
@@ -199,21 +198,6 @@
 - 避免 force push。
 - 避免 rebase 已推送的提交。
 - 保持仓库可构建。
-
-<!-- LOVABLE:BEGIN -->
-> [!IMPORTANT]
-> This project is connected to Lovable.
->
-> Avoid rewriting published Git history.
->
-> Do not force push.
->
-> Do not amend pushed commits.
->
-> Do not rebase pushed commits.
->
-> Keep the branch in a working state.
-<!-- LOVABLE:END -->
 
 ## 代码风格（Code Style）
 

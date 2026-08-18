@@ -65,7 +65,7 @@
 完整列定义见 DATABASE.md `interview_records` 表；本功能读写字段：
 
 - `title` 标题、`interviewee_name` 被询问人、`interviewer_names` 询问人列表、`location` 地点、`started_at` / `ended_at` 起止时间；
-- `transcript` 转写原文（独立保存，与结构化内容分离）；
+- `transcript` 转写文本（人工校订版，可编辑）与 `raw_transcript` 初始机器转写原文（只读保留，用于区分机器原文与人工校订版，二者独立保存、独立展示）；
 - `structured_content` 结构化内容（JSONB，核心为 `questions_and_answers` 问答列表）；
 - `status` 状态、`source_task_id` 来源 AI 任务。
 
@@ -82,6 +82,7 @@
 - `GET /api/interview-record/{id}` — 详情（含 transcript 与 structured_content）。
 - `PUT /api/interview-record/{id}` — 保存审阅后的编辑。
 - `GET /api/interview-record/{id}/download` — 下载 Word 文书。
+- `GET /api/files/{id}` — 受控获取源录音内容（提供回放时使用，schema 见 API.md §10）。
 - `GET /api/tasks/{task_id}` — 任务轮询。
 
 请求/响应 schema 见 API.md §4.3 与 §8。
