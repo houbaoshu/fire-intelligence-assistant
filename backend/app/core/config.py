@@ -66,6 +66,10 @@ class Settings(BaseSettings):
     AI_SPEECH_API_KEY: str = ""
     AI_SPEECH_MODEL: str = ""
     AI_SPEECH_BASE_URL: str = ""
+    # 语音转写接口风格：transcriptions（Whisper 风格 /audio/transcriptions，默认）；
+    # chat_completions（百炼等兼容端点无 /audio/transcriptions，走 /chat/completions
+    # + input_audio，模型如 qwen3-asr-flash）
+    AI_SPEECH_API_STYLE: str = "transcriptions"
     AI_EMBEDDING_API_KEY: str = ""
     AI_EMBEDDING_MODEL: str = ""
     AI_EMBEDDING_BASE_URL: str = ""

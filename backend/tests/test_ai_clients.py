@@ -167,6 +167,38 @@ def test_speech_malformed_response():
     assert exc_info.value.code == "AI_SERVICE_ERROR"
 
 
+def test_speech_chat_completions_style():
+    """AI_SPEECH_API_STYLE=chat_completions：走 /chat/completions + input_audio。"""
+    requests: list[httpx.Request] = []
+    service = SpeechService(
+        settings=_settings(AI_SPEECH_API_STYLE="chat_completions"),
+        transport=_chat_transport("转写文本", requests),
+    )
+    assert service.transcribe(b"RIFF....", filename="a.wav") == "转写文本"
+
+    request = requests[0]
+    assert request.url == "https://speech.example.com/v1/chat/completions"
+    assert request.headers["Authorization"] == "Bearer speech-key"
+    payload = json.loads(request.content)
+    assert payload["model"] == "speech-model"
+    assert payload["stream"] is False
+    audio = payload["messages"][0]["content"][0]["input_audio"]["data"]
+    assert audio.startswith("data:audio/wav;base64,")
+
+
+def test_speech_chat_completions_malformed_response():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"unexpected": True})
+
+    service = SpeechService(
+        settings=_settings(AI_SPEECH_API_STYLE="chat_completions"),
+        transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(AppException) as exc_info:
+        service.transcribe(b"RIFF....")
+    assert exc_info.value.code == "AI_SERVICE_ERROR"
+
+
 # ---------- 重试 ----------
 
 

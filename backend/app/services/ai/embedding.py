@@ -14,6 +14,10 @@ from app.services.ai.http_client import (
 )
 from app.services.ai.providers import resolve_capability_config
 
+# 单次请求的最大文本条数。部分 OpenAI 兼容服务（如 DashScope）限制批量
+# 上限（10~20 条），超限直接返回 400，因此统一按小批量分批调用。
+_EMBED_BATCH_SIZE = 10
+
 
 class EmbeddingService:
     def __init__(
@@ -47,6 +51,12 @@ class EmbeddingService:
             raise ai_not_configured("embedding")
         if not texts:
             return []
+        vectors: list[list[float]] = []
+        for start in range(0, len(texts), _EMBED_BATCH_SIZE):
+            vectors.extend(self._embed_batch(texts[start : start + _EMBED_BATCH_SIZE]))
+        return vectors
+
+    def _embed_batch(self, texts: list[str]) -> list[list[float]]:
         data = self._client.post_json(
             "/embeddings",
             {"model": self._model, "input": texts},

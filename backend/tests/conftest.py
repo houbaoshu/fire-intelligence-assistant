@@ -13,6 +13,23 @@ os.environ["VECTOR_STORE_DIR"] = str(Path(_tmp_dir) / "vectorstore")
 os.environ["MEDIA_TEMP_DIR"] = str(Path(_tmp_dir) / "temporary")
 # 启动自动化（M7）：测试自行通过 Alembic 建表，关闭 lifespan 自动迁移
 os.environ["AUTO_MIGRATE"] = "false"
+# 默认清空 AI 凭证，避免宿主机/开发目录 .env 泄露污染单元测试
+for key in (
+    "AI_LLM_API_KEY",
+    "AI_LLM_MODEL",
+    "AI_LLM_BASE_URL",
+    "AI_EMBEDDING_API_KEY",
+    "AI_EMBEDDING_MODEL",
+    "AI_EMBEDDING_BASE_URL",
+    "AI_OCR_API_KEY",
+    "AI_OCR_MODEL",
+    "AI_OCR_BASE_URL",
+    "AI_SPEECH_API_KEY",
+    "AI_SPEECH_MODEL",
+    "AI_SPEECH_BASE_URL",
+    "AI_SPEECH_API_STYLE",
+):
+    os.environ[key] = ""
 
 import pytest
 from fastapi.testclient import TestClient
